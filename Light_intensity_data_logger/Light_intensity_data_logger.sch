@@ -51,28 +51,28 @@ $EndComp
 $Comp
 L device:Battery BT?
 U 1 1 5E1E70C1
-P 5800 1050
-F 0 "BT?" H 5908 1096 50  0000 L CNN
-F 1 "Battery" H 5908 1005 50  0000 L CNN
-F 2 "Ben_Custom:BH3AAW-Battery_wire_pads" V 5800 1110 50  0001 C CNN
-F 3 "http://www.memoryprotectiondevices.com/datasheets/BH3AAW-datasheet.pdf" V 5800 1110 50  0001 C CNN
-F 4 "BH3AA-W-ND" H 5800 1050 50  0001 C CNN "Part#"
-	1    5800 1050
+P 5400 1550
+F 0 "BT?" H 5508 1596 50  0000 L CNN
+F 1 "Battery" H 5508 1505 50  0000 L CNN
+F 2 "Ben_Custom:BH3AAW-Battery_wire_pads" V 5400 1610 50  0001 C CNN
+F 3 "http://www.memoryprotectiondevices.com/datasheets/BH3AAW-datasheet.pdf" V 5400 1610 50  0001 C CNN
+F 4 "BH3AA-W-ND" H 5400 1550 50  0001 C CNN "Part#"
+	1    5400 1550
 	1    0    0    -1  
 $EndComp
 Text Label 10950 4350 0    50   ~ 0
 Vin
-Text Label 6100 850  0    50   ~ 0
+Text Label 6500 850  0    50   ~ 0
 Vin
 $Comp
 L power:GND #PWR?
 U 1 1 5E1EC268
-P 5800 1250
-F 0 "#PWR?" H 5800 1000 50  0001 C CNN
-F 1 "GND" H 5805 1077 50  0000 C CNN
-F 2 "" H 5800 1250 50  0001 C CNN
-F 3 "" H 5800 1250 50  0001 C CNN
-	1    5800 1250
+P 5400 1750
+F 0 "#PWR?" H 5400 1500 50  0001 C CNN
+F 1 "GND" H 5405 1577 50  0000 C CNN
+F 2 "" H 5400 1750 50  0001 C CNN
+F 3 "" H 5400 1750 50  0001 C CNN
+	1    5400 1750
 	1    0    0    -1  
 $EndComp
 $Comp
@@ -105,13 +105,13 @@ $EndComp
 $Comp
 L device:D D?
 U 1 1 5E1F5931
-P 5950 850
-F 0 "D?" H 5950 634 50  0000 C CNN
-F 1 "D" H 5950 725 50  0000 C CNN
-F 2 "Diodes_SMD:D_SOD-323" H 5950 850 50  0001 C CNN
-F 3 "https://toshiba.semicon-storage.com/info/docget.jsp?did=14077&prodName=CUS10S30" H 5950 850 50  0001 C CNN
-F 4 "CUS10S30H3FCT-ND" H 5950 850 50  0001 C CNN "Part#"
-	1    5950 850 
+P 6350 850
+F 0 "D?" H 6350 634 50  0000 C CNN
+F 1 "D" H 6350 725 50  0000 C CNN
+F 2 "Diodes_SMD:D_SOD-323" H 6350 850 50  0001 C CNN
+F 3 "https://toshiba.semicon-storage.com/info/docget.jsp?did=14077&prodName=CUS10S30" H 6350 850 50  0001 C CNN
+F 4 "CUS10S30H3FCT-ND" H 6350 850 50  0001 C CNN "Part#"
+	1    6350 850 
 	-1   0    0    1   
 $EndComp
 Text Label 8650 3350 2    50   ~ 0
@@ -171,7 +171,7 @@ P 3250 3650
 F 0 "U?" H 2821 3696 50  0000 R CNN
 F 1 "BME280" H 2821 3605 50  0000 R CNN
 F 2 "Housings_LGA:LGA-8_2.5x2.5mm_Pitch0.65mm" H 3250 3450 50  0001 C CNN
-F 3 "https://ae-bst.resource.bosch.com/media/_tech/media/datasheets/BST-BME280_DS001-11.pdf" H 3250 3450 50  0001 C CNN
+F 3 "https://www.bosch-sensortec.com/media/boschsensortec/downloads/environmental_sensors_2/humidity_sensors_1/bme280/bst-bme280-ds002.pdf" H 3250 3450 50  0001 C CNN
 F 4 "828-1063-1-ND" H 3250 3650 50  0001 C CNN "Part#"
 	1    3250 3650
 	1    0    0    -1  
@@ -270,7 +270,6 @@ NoConn ~ 8650 1850
 NoConn ~ 8650 1950
 NoConn ~ 8650 2050
 NoConn ~ 8650 2150
-NoConn ~ 8650 2450
 NoConn ~ 8650 2550
 NoConn ~ 8650 2650
 NoConn ~ 8650 2750
@@ -282,7 +281,6 @@ NoConn ~ 8650 3550
 NoConn ~ 8650 3650
 NoConn ~ 8650 3750
 NoConn ~ 8650 3850
-NoConn ~ 8650 3950
 NoConn ~ 8650 4050
 NoConn ~ 8650 4350
 NoConn ~ 8650 4450
@@ -342,10 +340,10 @@ L device:C C?
 U 1 1 5E23C716
 P 3850 2900
 F 0 "C?" H 3965 2946 50  0000 L CNN
-F 1 "10uF" H 3965 2855 50  0000 L CNN
-F 2 "Ben_Custom:0508_Capacitor" H 3888 2750 50  0001 C CNN
-F 3 "https://media.digikey.com/pdf/Data%20Sheets/Taiyo%20Yuden%20PDFs%20URL%20links/EWK212BJ106MD-T_Spec.pdf" H 3850 2900 50  0001 C CNN
-F 4 "587-5164-1-ND" H 3850 2900 50  0001 C CNN "Part#"
+F 1 "1uF" H 3965 2855 50  0000 L CNN
+F 2 "Capacitors_SMD:C_0603" H 3888 2750 50  0001 C CNN
+F 3 "https://media.digikey.com/pdf/Data%20Sheets/Samsung%20PDFs/CL10B105MO8NNWC.pdf" H 3850 2900 50  0001 C CNN
+F 4 "1276-6524-1-ND" H 3850 2900 50  0001 C CNN "Part#"
 	1    3850 2900
 	1    0    0    -1  
 $EndComp
@@ -361,18 +359,6 @@ F 3 "" H 3850 2750 50  0001 C CNN
 	1    3850 2750
 	-1   0    0    1   
 $EndComp
-$Comp
-L device:C C?
-U 1 1 5E23E072
-P 4400 3200
-F 0 "C?" H 4515 3246 50  0000 L CNN
-F 1 "10uF" H 4515 3155 50  0000 L CNN
-F 2 "Ben_Custom:0508_Capacitor" H 4438 3050 50  0001 C CNN
-F 3 "https://media.digikey.com/pdf/Data%20Sheets/Taiyo%20Yuden%20PDFs%20URL%20links/EWK212BJ106MD-T_Spec.pdf" H 4400 3200 50  0001 C CNN
-F 4 "587-5164-1-ND" H 4400 3200 50  0001 C CNN "Part#"
-	1    4400 3200
-	1    0    0    -1  
-$EndComp
 Wire Wire Line
 	4550 3650 4400 3650
 Wire Wire Line
@@ -387,18 +373,6 @@ F 2 "" H 4400 3050 50  0001 C CNN
 F 3 "" H 4400 3050 50  0001 C CNN
 	1    4400 3050
 	-1   0    0    1   
-$EndComp
-$Comp
-L device:C C?
-U 1 1 5E23FF0F
-P 6650 3250
-F 0 "C?" V 6398 3250 50  0000 C CNN
-F 1 "10uF" V 6489 3250 50  0000 C CNN
-F 2 "Ben_Custom:0508_Capacitor" H 6688 3100 50  0001 C CNN
-F 3 "https://media.digikey.com/pdf/Data%20Sheets/Taiyo%20Yuden%20PDFs%20URL%20links/EWK212BJ106MD-T_Spec.pdf" H 6650 3250 50  0001 C CNN
-F 4 "587-5164-1-ND" H 6650 3250 50  0001 C CNN "Part#"
-	1    6650 3250
-	0    1    1    0   
 $EndComp
 Wire Wire Line
 	6500 3250 6300 3250
@@ -459,4 +433,144 @@ Wire Wire Line
 	4100 3050 4100 3950
 Wire Wire Line
 	4100 3950 3850 3950
+$Comp
+L device:C C?
+U 1 1 5E24F840
+P 4400 3200
+F 0 "C?" H 4515 3246 50  0000 L CNN
+F 1 "1uF" H 4515 3155 50  0000 L CNN
+F 2 "Capacitors_SMD:C_0603" H 4438 3050 50  0001 C CNN
+F 3 "https://media.digikey.com/pdf/Data%20Sheets/Samsung%20PDFs/CL10B105MO8NNWC.pdf" H 4400 3200 50  0001 C CNN
+F 4 "1276-6524-1-ND" H 4400 3200 50  0001 C CNN "Part#"
+	1    4400 3200
+	1    0    0    -1  
+$EndComp
+$Comp
+L device:C C?
+U 1 1 5E24FD3B
+P 6650 3250
+F 0 "C?" V 6398 3250 50  0000 C CNN
+F 1 "1uF" V 6489 3250 50  0000 C CNN
+F 2 "Capacitors_SMD:C_0603" H 6688 3100 50  0001 C CNN
+F 3 "https://media.digikey.com/pdf/Data%20Sheets/Samsung%20PDFs/CL10B105MO8NNWC.pdf" H 6650 3250 50  0001 C CNN
+F 4 "1276-6524-1-ND" H 6650 3250 50  0001 C CNN "Part#"
+	1    6650 3250
+	0    1    1    0   
+$EndComp
+$Comp
+L Ben_custom:EXB-38V103JV RN?
+U 1 1 5E251FAC
+P 6500 2000
+F 0 "RN?" V 6454 2429 50  0000 L CNN
+F 1 "EXB-38V105JV" V 6545 2429 50  0000 L CNN
+F 2 "RESCAXS80P320X160X60-8N" H 6500 2000 50  0001 L BNN
+F 3 "https://media.digikey.com/pdf/Data%20Sheets/Panasonic%20Resistors%20Thermistors%20PDFs/EXB38V%20Spec.pdf" H 6500 2000 50  0001 L BNN
+F 4 "Y9105CT-ND" H 6500 2000 50  0001 L BNN "Part#"
+	1    6500 2000
+	0    1    1    0   
+$EndComp
+Wire Wire Line
+	6200 850  6000 850 
+Wire Wire Line
+	6200 850  6200 1700
+Connection ~ 6200 850 
+Wire Wire Line
+	6200 2300 6400 2300
+Wire Wire Line
+	6600 2300 6800 2300
+$Comp
+L power:GND #PWR?
+U 1 1 5E2599BD
+P 6800 1700
+F 0 "#PWR?" H 6800 1450 50  0001 C CNN
+F 1 "GND" V 6805 1572 50  0000 R CNN
+F 2 "" H 6800 1700 50  0001 C CNN
+F 3 "" H 6800 1700 50  0001 C CNN
+	1    6800 1700
+	0    -1   -1   0   
+$EndComp
+$Comp
+L device:C C?
+U 1 1 5E259F31
+P 6600 1550
+F 0 "C?" H 6485 1504 50  0000 R CNN
+F 1 "1uF" H 6485 1595 50  0000 R CNN
+F 2 "Capacitors_SMD:C_0603" H 6638 1400 50  0001 C CNN
+F 3 "https://media.digikey.com/pdf/Data%20Sheets/Samsung%20PDFs/CL10B105MO8NNWC.pdf" H 6600 1550 50  0001 C CNN
+F 4 "1276-6524-1-ND" H 6600 1550 50  0001 C CNN "Part#"
+	1    6600 1550
+	-1   0    0    1   
+$EndComp
+$Comp
+L power:GND #PWR?
+U 1 1 5E25A6EE
+P 6600 1400
+F 0 "#PWR?" H 6600 1150 50  0001 C CNN
+F 1 "GND" H 6605 1227 50  0000 C CNN
+F 2 "" H 6600 1400 50  0001 C CNN
+F 3 "" H 6600 1400 50  0001 C CNN
+	1    6600 1400
+	-1   0    0    1   
+$EndComp
+Connection ~ 6600 1700
+Wire Wire Line
+	6400 1700 6600 1700
+Text Label 8650 3950 2    50   ~ 0
+A16
+Text Label 6400 1700 2    50   ~ 0
+A16
+Text Label 8650 2450 2    50   ~ 0
+25
+Text Label 4850 1850 0    50   ~ 0
+25
+Text Label 4850 2250 0    50   ~ 0
+25
+$Comp
+L power:GND #PWR?
+U 1 1 5E25E1DF
+P 4450 1750
+F 0 "#PWR?" H 4450 1500 50  0001 C CNN
+F 1 "GND" V 4455 1622 50  0000 R CNN
+F 2 "" H 4450 1750 50  0001 C CNN
+F 3 "" H 4450 1750 50  0001 C CNN
+	1    4450 1750
+	0    1    1    0   
+$EndComp
+$Comp
+L power:GND #PWR?
+U 1 1 5E25ED59
+P 4450 2150
+F 0 "#PWR?" H 4450 1900 50  0001 C CNN
+F 1 "GND" V 4455 2022 50  0000 R CNN
+F 2 "" H 4450 2150 50  0001 C CNN
+F 3 "" H 4450 2150 50  0001 C CNN
+	1    4450 2150
+	0    1    1    0   
+$EndComp
+NoConn ~ 4850 1650
+NoConn ~ 4850 2050
+$Comp
+L dk_Slide-Switches:JS202011SCQN S?
+U 1 1 5E261D45
+P 5600 1150
+F 0 "S?" H 5600 1633 50  0000 C CNN
+F 1 "JS202011SCQN" H 5600 1542 50  0000 C CNN
+F 2 "digikey-footprints:Switch_Slide_JS202011SCQN" H 5800 1350 50  0001 L CNN
+F 3 "https://www.ckswitches.com/media/1422/js.pdf" H 5800 1450 60  0001 L CNN
+F 4 "401-2002-1-ND" H 5800 2350 60  0001 L CNN "Part#"
+	1    5600 1150
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	6000 850  6000 1250
+Wire Wire Line
+	6000 1250 5800 1250
+Connection ~ 6000 850 
+Wire Wire Line
+	6000 850  5800 850 
+NoConn ~ 5800 1050
+NoConn ~ 5800 1450
+Wire Wire Line
+	5400 950  5400 1350
+Connection ~ 5400 1350
 $EndSCHEMATC
