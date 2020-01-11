@@ -1,4 +1,4 @@
-1061055625083305
+1062642267916262
 Battery_Holders
 Bulgin_BX0036_1xC
 
@@ -467,7 +467,7 @@ surface-mounted straight pin header, 1x08, 2.54mm pitch, single row, style 1 (pi
 Surface mounted pin header SMD 1x08 2.54mm single row style1 pin1 left
 0
 16
-8
+16
 Ben_Custom
 LMZM23601SILR
 
@@ -587,6 +587,13 @@ Resistor_Array_x4_1206
 0
 8
 8
+Ben_Custom
+Resistor_array_1506_8x
+
+
+0
+16
+16
 Ben_Custom
 SN74LVC1G3157DBVR
 
