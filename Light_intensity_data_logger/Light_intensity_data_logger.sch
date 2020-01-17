@@ -16,8 +16,6 @@ Comment4 ""
 $EndDescr
 Text Label 10950 4350 0    50   ~ 0
 Vin
-Text Label 10950 4550 0    50   ~ 0
-3v3
 $Comp
 L power:GND #PWR0102
 U 1 1 5E1FDE5A
@@ -339,10 +337,6 @@ F 3 "" H 10950 4450 50  0001 C CNN
 $EndComp
 Text Label 10950 4850 0    50   ~ 0
 21*
-Text Label 2550 1850 2    50   ~ 0
-2*
-Text Label 2550 1050 2    50   ~ 0
-5
 $Comp
 L conn:Conn_01x01 J1
 U 1 1 5E1E9BAA
@@ -369,8 +363,6 @@ NoConn ~ 8650 3450
 NoConn ~ 8650 3350
 Text Label 8650 3250 2    50   ~ 0
 Wire_to_coin_cell
-Text Label 8650 1450 2    50   ~ 0
-5
 Text Label 6000 3750 0    50   ~ 0
 A0
 Text Label 5500 3750 0    50   ~ 0
@@ -405,16 +397,14 @@ Wire Wire Line
 	6000 3750 5900 3750
 Wire Wire Line
 	5900 2650 6000 2650
-Text Label 5150 1400 0    50   ~ 0
-11*
 Text Label 5150 1200 0    50   ~ 0
+11*
+Text Label 4350 1400 2    50   ~ 0
 10*
 Text Label 5150 1000 0    50   ~ 0
 9*
-Text Label 4350 1400 2    50   ~ 0
-7*
 Text Label 4350 1200 2    50   ~ 0
-6*
+7*
 $Comp
 L power:GND #PWR0111
 U 1 1 5E326B92
@@ -447,9 +437,9 @@ F 12 "Active" H 4950 2400 60  0001 L CNN "Status"
 	1    0    0    -1  
 $EndComp
 Connection ~ 8650 850 
-Text Label 8650 1050 2    50   ~ 0
+Text Label 8650 2950 2    50   ~ 0
 RW
-Text Label 8650 950  2    50   ~ 0
+Text Label 8650 2750 2    50   ~ 0
 RS
 $Comp
 L teensy:Teensy3.6 U4
@@ -476,23 +466,23 @@ F 3 "" H 8650 850 50  0001 C CNN
 $EndComp
 Text Label 8650 2150 2    50   ~ 0
 I2C_Pullup
-Text Label 8650 3150 2    50   ~ 0
-E
-Text Label 8650 3050 2    50   ~ 0
-DB7
-Text Label 8650 2950 2    50   ~ 0
-DB6
 Text Label 8650 2850 2    50   ~ 0
+E
+Text Label 8650 1050 2    50   ~ 0
+DB7
+Text Label 8650 1250 2    50   ~ 0
+DB6
+Text Label 8650 1350 2    50   ~ 0
 DB5
-Text Label 8650 2750 2    50   ~ 0
+Text Label 8650 1450 2    50   ~ 0
 DB4
-Text Label 8650 2650 2    50   ~ 0
+Text Label 8650 1550 2    50   ~ 0
 DB3
-Text Label 8650 2550 2    50   ~ 0
+Text Label 8650 1750 2    50   ~ 0
 DB2
-Text Label 8650 2450 2    50   ~ 0
+Text Label 8650 3050 2    50   ~ 0
 DB1
-Text Label 8650 2350 2    50   ~ 0
+Text Label 8650 3150 2    50   ~ 0
 DB0
 Text Label 8650 2050 2    50   ~ 0
 11*
@@ -576,12 +566,6 @@ NoConn ~ 10950 950
 NoConn ~ 10950 850 
 NoConn ~ 8650 3650
 NoConn ~ 8650 3550
-Text Label 8650 1250 2    50   ~ 0
-SCL2
-Text Label 8650 1350 2    50   ~ 0
-SDA2
-Text Label 8650 1550 2    50   ~ 0
-6*
 Text Label 3450 3150 0    50   ~ 0
 SDA0
 Text Label 5050 2850 1    50   ~ 0
@@ -795,10 +779,6 @@ Text Label 4900 3750 1    50   ~ 0
 SDA1
 Text Label 5100 3750 1    50   ~ 0
 SCL1
-Text Label 8650 1750 2    50   ~ 0
-8
-Text Label 7650 1950 2    50   ~ 0
-8
 Text Label 5300 5050 2    50   ~ 0
 36
 Text Label 8650 4350 2    50   ~ 0
@@ -827,4 +807,16 @@ Wire Wire Line
 	6100 4700 6100 5100
 Wire Wire Line
 	5700 5350 6100 5350
+Text Label 8650 2350 2    50   ~ 0
+24
+Text Label 2550 1050 2    50   ~ 0
+24
+Text Label 8650 2450 2    50   ~ 0
+25
+Text Label 2550 1850 2    50   ~ 0
+25
+NoConn ~ 10950 4550
+Text Label 5150 1400 0    50   ~ 0
+2*
+NoConn ~ 8650 950 
 $EndSCHEMATC
