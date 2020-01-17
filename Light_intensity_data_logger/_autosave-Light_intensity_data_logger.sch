@@ -67,7 +67,6 @@ Text Label 10950 5050 0    50   ~ 0
 SCL0
 Text Label 8650 4250 2    50   ~ 0
 SDA1
-NoConn ~ 8650 4350
 NoConn ~ 8650 4550
 NoConn ~ 8650 4750
 NoConn ~ 10950 4150
@@ -206,18 +205,6 @@ Wire Wire Line
 Wire Wire Line
 	5350 5350 5500 5350
 $Comp
-L Ben_custom:NTJD4001NT1G Q2
-U 1 1 5E2C265D
-P 5500 5150
-F 0 "Q2" H 5200 5200 50  0000 L CNN
-F 1 "NTJD4001NT1G" H 4800 5300 50  0000 L CNN
-F 2 "TO_SOT_Packages_SMD:SOT-363_SC-70-6" H 4750 5000 50  0001 L BNN
-F 3 "http://www.onsemi.com/pub/Collateral/NTJD4001N-D.PDF" H 5400 5150 50  0001 L BNN
-F 4 "NTJD4001NT1GOSCT-ND" H 5400 5150 50  0001 L BNN "Part#"
-	1    5500 5150
-	1    0    0    -1  
-$EndComp
-$Comp
 L dk_Slide-Switches:JS202011SCQN S2
 U 1 1 5E261D45
 P 6300 4900
@@ -252,7 +239,7 @@ F 3 "" H 6650 5900 50  0001 C CNN
 	1    6650 5900
 	-1   0    0    -1  
 $EndComp
-Text Label 5700 4700 0    50   ~ 0
+Text Label 5900 5350 0    50   ~ 0
 Vin
 $Comp
 L device:Battery BT2
@@ -329,20 +316,13 @@ Wire Wire Line
 Connection ~ 6900 4800
 Text Notes 7150 4850 0    50   ~ 0
 Current test
-Wire Wire Line
-	5700 5350 5600 5350
-Wire Wire Line
-	5600 5350 5600 4250
-Wire Wire Line
-	5600 4250 5700 4250
-Connection ~ 5500 5350
 Text Label 8650 4850 2    50   ~ 0
 A0
 Text Label 8650 4950 2    50   ~ 0
 A1
 Text Label 8650 5150 2    50   ~ 0
 17
-Text Label 5300 5250 2    50   ~ 0
+Text Label 5900 2850 0    50   ~ 0
 16*
 Text Label 4100 1900 0    50   ~ 0
 17
@@ -361,8 +341,6 @@ Text Label 10950 4850 0    50   ~ 0
 21*
 Text Label 2550 1850 2    50   ~ 0
 2*
-Text Label 2550 1050 2    50   ~ 0
-5
 $Comp
 L conn:Conn_01x01 J1
 U 1 1 5E1E9BAA
@@ -374,11 +352,6 @@ F 3 "~" H 5150 5350 50  0001 C CNN
 	1    5150 5350
 	-1   0    0    1   
 $EndComp
-Wire Wire Line
-	6100 5100 6100 4700
-Connection ~ 6100 4700
-Wire Wire Line
-	5700 4700 5700 4950
 Wire Wire Line
 	4700 4250 4900 4250
 Wire Wire Line
@@ -396,12 +369,10 @@ Text Label 8650 3250 2    50   ~ 0
 Wire_to_coin_cell
 Text Label 8650 1450 2    50   ~ 0
 5
-Text Label 5500 3750 2    50   ~ 0
-A0
 Text Label 6000 3750 0    50   ~ 0
+A0
+Text Label 5500 3750 0    50   ~ 0
 A1
-Text Label 5900 5250 0    50   ~ 0
-36
 Text Label 8650 4050 2    50   ~ 0
 36
 Text Label 8650 3950 2    50   ~ 0
@@ -430,8 +401,6 @@ F 4 "Y1472CT-ND" V 5900 3750 50  0001 C CNN "Part#"
 $EndComp
 Wire Wire Line
 	6000 3750 5900 3750
-Wire Wire Line
-	5050 3750 4900 3750
 Wire Wire Line
 	5900 2650 6000 2650
 Text Label 5150 1400 0    50   ~ 0
@@ -476,9 +445,9 @@ F 12 "Active" H 4950 2400 60  0001 L CNN "Status"
 	1    0    0    -1  
 $EndComp
 Connection ~ 8650 850 
-Text Label 8650 1050 2    50   ~ 0
+Text Label 8650 2950 2    50   ~ 0
 RW
-Text Label 8650 950  2    50   ~ 0
+Text Label 8650 2750 2    50   ~ 0
 RS
 $Comp
 L teensy:Teensy3.6 U4
@@ -505,23 +474,23 @@ F 3 "" H 8650 850 50  0001 C CNN
 $EndComp
 Text Label 8650 2150 2    50   ~ 0
 I2C_Pullup
-Text Label 8650 3150 2    50   ~ 0
-E
-Text Label 8650 3050 2    50   ~ 0
-DB7
-Text Label 8650 2950 2    50   ~ 0
-DB6
 Text Label 8650 2850 2    50   ~ 0
+E
+Text Label 8000 2550 2    50   ~ 0
+DB7
+Text Label 8050 2250 2    50   ~ 0
+DB6
+Text Label 7850 2050 2    50   ~ 0
 DB5
-Text Label 8650 2750 2    50   ~ 0
+Text Label 7800 1850 2    50   ~ 0
 DB4
-Text Label 8650 2650 2    50   ~ 0
+Text Label 7700 1650 2    50   ~ 0
 DB3
-Text Label 8650 2550 2    50   ~ 0
+Text Label 7650 1450 2    50   ~ 0
 DB2
-Text Label 8650 2450 2    50   ~ 0
+Text Label 8650 3050 2    50   ~ 0
 DB1
-Text Label 8650 2350 2    50   ~ 0
+Text Label 8650 3150 2    50   ~ 0
 DB0
 Text Label 8650 2050 2    50   ~ 0
 11*
@@ -561,14 +530,6 @@ Wire Wire Line
 	4100 1900 4100 3050
 Wire Wire Line
 	4150 3050 4100 3050
-Wire Wire Line
-	4150 3750 4500 3750
-Wire Wire Line
-	4150 3200 4150 3750
-Wire Wire Line
-	4750 3200 4750 3750
-Wire Wire Line
-	4750 3750 4700 3750
 $Comp
 L power:GND #PWR0113
 U 1 1 5E241861
@@ -613,9 +574,6 @@ NoConn ~ 10950 950
 NoConn ~ 10950 850 
 NoConn ~ 8650 3650
 NoConn ~ 8650 3550
-NoConn ~ 8650 1750
-Wire Wire Line
-	5100 3050 5100 3750
 Text Label 8650 1250 2    50   ~ 0
 SCL2
 Text Label 8650 1350 2    50   ~ 0
@@ -624,7 +582,7 @@ Text Label 8650 1550 2    50   ~ 0
 6*
 Text Label 3450 3150 0    50   ~ 0
 SDA0
-Text Label 5050 3500 2    50   ~ 0
+Text Label 5050 2850 1    50   ~ 0
 SCL0
 Text Label 8650 4150 2    50   ~ 0
 SCL1
@@ -643,8 +601,6 @@ Text Label 8650 1150 2    50   ~ 0
 2*
 Wire Wire Line
 	4750 3050 4800 3050
-Wire Wire Line
-	5050 2850 5050 3750
 Wire Wire Line
 	5100 2850 5050 2850
 $Comp
@@ -770,13 +726,11 @@ F 4 "CUS10S30H3FCT-ND" H 7100 5350 50  0001 C CNN "Part#"
 	0    -1   1    0   
 $EndComp
 Connection ~ 7100 5200
-Wire Wire Line
-	5700 4700 6100 4700
 Text Label 10950 5150 0    50   ~ 0
 SDA0
-Text Label 4750 3500 2    50   ~ 0
+Text Label 4750 3200 3    50   ~ 0
 SCL1
-Text Label 4150 3500 0    50   ~ 0
+Text Label 4150 3200 3    50   ~ 0
 SDA1
 Wire Wire Line
 	5500 4550 5500 4950
@@ -817,7 +771,7 @@ F 4 "CUS10S30H3FCT-ND" H 5500 4400 50  0001 C CNN "Part#"
 $EndComp
 Text Label 3450 2950 0    50   ~ 0
 SCL0
-Text Label 5100 3500 0    50   ~ 0
+Text Label 5100 3050 3    50   ~ 0
 SDA0
 Text Label 10950 4950 0    50   ~ 0
 20
@@ -829,8 +783,48 @@ Text Label 6000 1900 0    50   ~ 0
 23
 Text Label 8650 3750 2    50   ~ 0
 33*
-Text Label 5900 2850 0    50   ~ 0
-21*
 Text Label 4800 3050 0    50   ~ 0
 33*
+Text Label 4500 3750 1    50   ~ 0
+SDA0
+Text Label 4700 3750 1    50   ~ 0
+SCL0
+Text Label 4900 3750 1    50   ~ 0
+SDA1
+Text Label 5100 3750 1    50   ~ 0
+SCL1
+Text Label 8650 1750 2    50   ~ 0
+8
+Text Label 5300 5050 2    50   ~ 0
+36
+Text Label 8650 4350 2    50   ~ 0
+39
+Text Label 5900 5050 0    50   ~ 0
+39
+Wire Wire Line
+	6100 5100 6100 5350
+Connection ~ 6100 5100
+Wire Wire Line
+	5700 4950 5700 4250
+$Comp
+L Ben_custom:NTJD4001NT1G Q2
+U 1 1 5E2C265D
+P 5500 5150
+F 0 "Q2" H 5450 4800 50  0000 L CNN
+F 1 "NTJD4001NT1G" H 5150 4900 50  0000 L CNN
+F 2 "TO_SOT_Packages_SMD:SOT-363_SC-70-6" H 4750 5000 50  0001 L BNN
+F 3 "http://www.onsemi.com/pub/Collateral/NTJD4001N-D.PDF" H 5400 5150 50  0001 L BNN
+F 4 "NTJD4001NT1GOSCT-ND" H 5400 5150 50  0001 L BNN "Part#"
+	1    5500 5150
+	1    0    0    1   
+$EndComp
+Connection ~ 5500 5350
+Wire Wire Line
+	6100 4700 6100 5100
+Wire Wire Line
+	5700 5350 6100 5350
+Text Label 8650 2350 2    50   ~ 0
+24
+Text Label 2550 1050 2    50   ~ 0
+24
 $EndSCHEMATC
