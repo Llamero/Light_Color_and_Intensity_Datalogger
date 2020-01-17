@@ -16,29 +16,6 @@ Comment4 ""
 $EndDescr
 Text Label 10950 4350 0    50   ~ 0
 Vin
-$Comp
-L power:GND #PWR0101
-U 1 1 5E1EC75C
-P 5500 5950
-F 0 "#PWR0101" H 5500 5700 50  0001 C CNN
-F 1 "GND" H 5505 5777 50  0000 C CNN
-F 2 "" H 5500 5950 50  0001 C CNN
-F 3 "" H 5500 5950 50  0001 C CNN
-	1    5500 5950
-	1    0    0    -1  
-$EndComp
-$Comp
-L Ben_custom:BU2032SM-BT-GTR BT1
-U 1 1 5E1F3175
-P 5500 5650
-F 0 "BT1" H 5454 5780 50  0000 L CNN
-F 1 "BU2032SM-BT-GTR" H 5250 5850 50  0000 L CNN
-F 2 "Ben_Custom:BU2032SM-BT-GTR" H 5150 5200 50  0001 L BNN
-F 3 "http://www.memoryprotectiondevices.com/datasheets/BU2032SM-BT-GTR-datasheet.pdf" H 4900 5300 50  0001 L BNN
-F 4 "BU2032SM-BT-GCT-ND" H 5100 5100 50  0001 L BNN "Part#"
-	1    5500 5650
-	0    1    1    0   
-$EndComp
 Text Label 10950 4550 0    50   ~ 0
 3v3
 $Comp
@@ -87,8 +64,6 @@ F 3 "" H 2950 3650 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 Text Label 10950 5050 0    50   ~ 0
-SCL0
-Text Label 3450 2950 0    50   ~ 0
 SCL0
 Text Label 8650 4250 2    50   ~ 0
 SDA1
@@ -200,18 +175,6 @@ F 3 "http://www.onsemi.com/pub/Collateral/NTJD4001N-D.PDF" H 2550 1350 50  0001 
 F 4 "NTJD4001NT1GOSCT-ND" H 2550 1350 50  0001 L BNN "Part#"
 	1    2650 1350
 	0    1    1    0   
-$EndComp
-$Comp
-L device:D D1
-U 1 1 5E2E8394
-P 5500 4400
-F 0 "D1" V 5600 4500 50  0000 C CNN
-F 1 "D" V 5500 4550 50  0000 C CNN
-F 2 "Diodes_SMD:D_SOD-323" H 5500 4400 50  0001 C CNN
-F 3 "https://toshiba.semicon-storage.com/info/docget.jsp?did=14077&prodName=CUS10S30" H 5500 4400 50  0001 C CNN
-F 4 "CUS10S30H3FCT-ND" H 5500 4400 50  0001 C CNN "Part#"
-	1    5500 4400
-	0    -1   1    0   
 $EndComp
 Wire Wire Line
 	2050 1550 2050 1900
@@ -367,16 +330,12 @@ Connection ~ 6900 4800
 Text Notes 7150 4850 0    50   ~ 0
 Current test
 Wire Wire Line
-	5500 4550 5500 4950
-Wire Wire Line
 	5700 5350 5600 5350
 Wire Wire Line
 	5600 5350 5600 4250
 Wire Wire Line
 	5600 4250 5700 4250
 Connection ~ 5500 5350
-Text Label 3200 1900 2    50   ~ 0
-34
 Text Label 8650 4850 2    50   ~ 0
 A0
 Text Label 8650 4950 2    50   ~ 0
@@ -385,7 +344,7 @@ Text Label 8650 5150 2    50   ~ 0
 17
 Text Label 5300 5250 2    50   ~ 0
 16*
-Text Label 5900 5250 0    50   ~ 0
+Text Label 4100 1900 0    50   ~ 0
 17
 $Comp
 L power:GND #PWR0110
@@ -404,8 +363,6 @@ Text Label 2550 1850 2    50   ~ 0
 2*
 Text Label 2550 1050 2    50   ~ 0
 5
-NoConn ~ 10950 4650
-NoConn ~ 10950 4950
 $Comp
 L conn:Conn_01x01 J1
 U 1 1 5E1E9BAA
@@ -443,10 +400,8 @@ Text Label 5500 3750 2    50   ~ 0
 A0
 Text Label 6000 3750 0    50   ~ 0
 A1
-Text Label 6000 1900 2    50   ~ 0
+Text Label 5900 5250 0    50   ~ 0
 36
-Text Label 4100 1900 2    50   ~ 0
-35
 Text Label 8650 4050 2    50   ~ 0
 36
 Text Label 8650 3950 2    50   ~ 0
@@ -550,10 +505,6 @@ F 3 "" H 8650 850 50  0001 C CNN
 $EndComp
 Text Label 8650 2150 2    50   ~ 0
 I2C_Pullup
-Text Label 4800 3050 0    50   ~ 0
-21*
-Text Label 5900 2850 0    50   ~ 0
-22*
 Text Label 8650 3150 2    50   ~ 0
 E
 Text Label 8650 3050 2    50   ~ 0
@@ -660,7 +611,6 @@ NoConn ~ 10950 1150
 NoConn ~ 10950 1050
 NoConn ~ 10950 950 
 NoConn ~ 10950 850 
-NoConn ~ 8650 3750
 NoConn ~ 8650 3650
 NoConn ~ 8650 3550
 NoConn ~ 8650 1750
@@ -672,10 +622,10 @@ Text Label 8650 1350 2    50   ~ 0
 SDA2
 Text Label 8650 1550 2    50   ~ 0
 6*
-Text Label 4150 3500 0    50   ~ 0
-SDA1
-Text Label 4750 3500 2    50   ~ 0
-SCL1
+Text Label 3450 3150 0    50   ~ 0
+SDA0
+Text Label 5050 3500 2    50   ~ 0
+SCL0
 Text Label 8650 4150 2    50   ~ 0
 SCL1
 $Comp
@@ -824,10 +774,63 @@ Wire Wire Line
 	5700 4700 6100 4700
 Text Label 10950 5150 0    50   ~ 0
 SDA0
-Text Label 5050 3500 2    50   ~ 0
+Text Label 4750 3500 2    50   ~ 0
+SCL1
+Text Label 4150 3500 0    50   ~ 0
+SDA1
+Wire Wire Line
+	5500 4550 5500 4950
+$Comp
+L power:GND #PWR0101
+U 1 1 5E1EC75C
+P 5500 5950
+F 0 "#PWR0101" H 5500 5700 50  0001 C CNN
+F 1 "GND" H 5505 5777 50  0000 C CNN
+F 2 "" H 5500 5950 50  0001 C CNN
+F 3 "" H 5500 5950 50  0001 C CNN
+	1    5500 5950
+	1    0    0    -1  
+$EndComp
+$Comp
+L Ben_custom:BU2032SM-BT-GTR BT1
+U 1 1 5E1F3175
+P 5500 5650
+F 0 "BT1" H 5454 5780 50  0000 L CNN
+F 1 "BU2032SM-BT-GTR" H 5250 5850 50  0000 L CNN
+F 2 "Ben_Custom:BU2032SM-BT-GTR" H 5150 5200 50  0001 L BNN
+F 3 "http://www.memoryprotectiondevices.com/datasheets/BU2032SM-BT-GTR-datasheet.pdf" H 4900 5300 50  0001 L BNN
+F 4 "BU2032SM-BT-GCT-ND" H 5100 5100 50  0001 L BNN "Part#"
+	1    5500 5650
+	0    1    1    0   
+$EndComp
+$Comp
+L device:D D1
+U 1 1 5E2E8394
+P 5500 4400
+F 0 "D1" V 5600 4500 50  0000 C CNN
+F 1 "D" V 5500 4550 50  0000 C CNN
+F 2 "Diodes_SMD:D_SOD-323" H 5500 4400 50  0001 C CNN
+F 3 "https://toshiba.semicon-storage.com/info/docget.jsp?did=14077&prodName=CUS10S30" H 5500 4400 50  0001 C CNN
+F 4 "CUS10S30H3FCT-ND" H 5500 4400 50  0001 C CNN "Part#"
+	1    5500 4400
+	0    -1   1    0   
+$EndComp
+Text Label 3450 2950 0    50   ~ 0
 SCL0
-Text Label 3450 3150 0    50   ~ 0
-SDA0
 Text Label 5100 3500 0    50   ~ 0
 SDA0
+Text Label 10950 4950 0    50   ~ 0
+20
+Text Label 3200 1900 0    50   ~ 0
+20
+Text Label 10950 4650 0    50   ~ 0
+23
+Text Label 6000 1900 0    50   ~ 0
+23
+Text Label 8650 3750 2    50   ~ 0
+33*
+Text Label 5900 2850 0    50   ~ 0
+21*
+Text Label 4800 3050 0    50   ~ 0
+33*
 $EndSCHEMATC

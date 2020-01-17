@@ -16,29 +16,6 @@ Comment4 ""
 $EndDescr
 Text Label 10950 4350 0    50   ~ 0
 Vin
-$Comp
-L power:GND #PWR0101
-U 1 1 5E1EC75C
-P 5500 5950
-F 0 "#PWR0101" H 5500 5700 50  0001 C CNN
-F 1 "GND" H 5505 5777 50  0000 C CNN
-F 2 "" H 5500 5950 50  0001 C CNN
-F 3 "" H 5500 5950 50  0001 C CNN
-	1    5500 5950
-	1    0    0    -1  
-$EndComp
-$Comp
-L Ben_custom:BU2032SM-BT-GTR BT1
-U 1 1 5E1F3175
-P 5500 5650
-F 0 "BT1" H 5454 5780 50  0000 L CNN
-F 1 "BU2032SM-BT-GTR" H 5250 5850 50  0000 L CNN
-F 2 "Ben_Custom:BU2032SM-BT-GTR" H 5150 5200 50  0001 L BNN
-F 3 "http://www.memoryprotectiondevices.com/datasheets/BU2032SM-BT-GTR-datasheet.pdf" H 4900 5300 50  0001 L BNN
-F 4 "BU2032SM-BT-GCT-ND" H 5100 5100 50  0001 L BNN "Part#"
-	1    5500 5650
-	0    1    1    0   
-$EndComp
 Text Label 10950 4550 0    50   ~ 0
 3v3
 $Comp
@@ -86,11 +63,7 @@ F 3 "" H 2950 3650 50  0001 C CNN
 	1    2950 3650
 	1    0    0    -1  
 $EndComp
-Text Label 3450 3150 0    50   ~ 0
-SDA0
 Text Label 10950 5050 0    50   ~ 0
-SCL0
-Text Label 3450 2950 0    50   ~ 0
 SCL0
 Text Label 8650 4250 2    50   ~ 0
 SDA1
@@ -202,18 +175,6 @@ F 3 "http://www.onsemi.com/pub/Collateral/NTJD4001N-D.PDF" H 2550 1350 50  0001 
 F 4 "NTJD4001NT1GOSCT-ND" H 2550 1350 50  0001 L BNN "Part#"
 	1    2650 1350
 	0    1    1    0   
-$EndComp
-$Comp
-L device:D D1
-U 1 1 5E2E8394
-P 5500 4400
-F 0 "D1" V 5600 4500 50  0000 C CNN
-F 1 "D" V 5500 4550 50  0000 C CNN
-F 2 "Diodes_SMD:D_SOD-323" H 5500 4400 50  0001 C CNN
-F 3 "https://toshiba.semicon-storage.com/info/docget.jsp?did=14077&prodName=CUS10S30" H 5500 4400 50  0001 C CNN
-F 4 "CUS10S30H3FCT-ND" H 5500 4400 50  0001 C CNN "Part#"
-	1    5500 4400
-	0    -1   1    0   
 $EndComp
 Wire Wire Line
 	2050 1550 2050 1900
@@ -369,8 +330,6 @@ Connection ~ 6900 4800
 Text Notes 7150 4850 0    50   ~ 0
 Current test
 Wire Wire Line
-	5500 4550 5500 4950
-Wire Wire Line
 	5700 5350 5600 5350
 Wire Wire Line
 	5600 5350 5600 4250
@@ -468,10 +427,10 @@ L Ben_custom:EXB-2HV103JV_-_8x10k_resistor_array R2
 U 1 1 5E2CE816
 P 5900 3750
 F 0 "R2" V 6044 3829 60  0000 L CNN
-F 1 "EXB-2HV103JV_-_8x10k_resistor_array" V 6150 3829 60  0000 L CNN
+F 1 "EXB-2HV472JV_-_8x4.7k_resistor_array" V 6150 3829 60  0000 L CNN
 F 2 "Ben_Custom:Resistor_array_1506_8x" H 6150 3415 60  0001 C CNN
-F 3 "https://industrial.panasonic.com/cdbs/www-data/pdf/AOC0000/AOC0000C14.pdf" V 6650 4200 60  0001 L CNN
-F 4 "Y1103CT-ND" V 5900 3750 50  0001 C CNN "Part#"
+F 3 "https://industrial.panasonic.com/cdbs/www-https://industrial.panasonic.com/cdbs/www-data/pdf/AOC0000/AOC0000C14.pdf" V 6650 4200 60  0001 L CNN
+F 4 "Y1472CT-ND" V 5900 3750 50  0001 C CNN "Part#"
 	1    5900 3750
 	0    1    1    0   
 $EndComp
@@ -668,19 +627,15 @@ NoConn ~ 8650 3550
 NoConn ~ 8650 1750
 Wire Wire Line
 	5100 3050 5100 3750
-Text Label 5050 3550 2    50   ~ 0
-SCL2
-Text Label 5100 3550 0    50   ~ 0
-SDA2
 Text Label 8650 1250 2    50   ~ 0
 SCL2
 Text Label 8650 1350 2    50   ~ 0
 SDA2
 Text Label 8650 1550 2    50   ~ 0
 6*
-Text Label 4150 3550 0    50   ~ 0
+Text Label 3450 3150 0    50   ~ 0
 SDA1
-Text Label 4750 3550 2    50   ~ 0
+Text Label 5050 3500 2    50   ~ 0
 SCL1
 Text Label 8650 4150 2    50   ~ 0
 SCL1
@@ -728,10 +683,10 @@ $EndComp
 Text Label 8650 2250 2    50   ~ 0
 3v3
 $Comp
-L Ben_custom:TSL25911FN U2
+L Ben_custom:TSL25911FN U3
 U 1 1 5E1E6521
 P 4450 3050
-F 0 "U2" H 4450 2685 50  0000 C CNN
+F 0 "U3" H 4450 2685 50  0000 C CNN
 F 1 "TSL25911FN" H 4450 2776 50  0000 C CNN
 F 2 "Ben_Custom:TSL25911FN" H 4050 3500 50  0001 C CNN
 F 3 "https://ams.com/documents/20143/36005/TSL2591_DS000338_6-00.pdf" H 4050 3500 50  0001 C CNN
@@ -740,10 +695,10 @@ F 4 "TSL25911FNCT-ND" H 4450 3050 50  0001 C CNN "Part#"
 	-1   0    0    1   
 $EndComp
 $Comp
-L Ben_custom:TCS34725FN U3
+L Ben_custom:TCS34725FN U2
 U 1 1 5E1E525D
 P 5500 2950
-F 0 "U3" H 5500 3517 50  0000 C CNN
+F 0 "U2" H 5500 3517 50  0000 C CNN
 F 1 "TCS34725FN" H 5500 3426 50  0000 C CNN
 F 2 "Ben_Custom:TCS34725" H 5150 3450 50  0001 L BNN
 F 3 "https://ams.com/documents/20143/36005/TCS3472_DS000390_2-00.pdf" H 5150 2450 50  0001 L BNN
@@ -830,4 +785,49 @@ Wire Wire Line
 	5700 4700 6100 4700
 Text Label 10950 5150 0    50   ~ 0
 SDA0
+Text Label 4750 3500 2    50   ~ 0
+SCL0
+Text Label 4150 3500 0    50   ~ 0
+SDA0
+Wire Wire Line
+	5500 4550 5500 4950
+$Comp
+L power:GND #PWR0101
+U 1 1 5E1EC75C
+P 5500 5950
+F 0 "#PWR0101" H 5500 5700 50  0001 C CNN
+F 1 "GND" H 5505 5777 50  0000 C CNN
+F 2 "" H 5500 5950 50  0001 C CNN
+F 3 "" H 5500 5950 50  0001 C CNN
+	1    5500 5950
+	1    0    0    -1  
+$EndComp
+$Comp
+L Ben_custom:BU2032SM-BT-GTR BT1
+U 1 1 5E1F3175
+P 5500 5650
+F 0 "BT1" H 5454 5780 50  0000 L CNN
+F 1 "BU2032SM-BT-GTR" H 5250 5850 50  0000 L CNN
+F 2 "Ben_Custom:BU2032SM-BT-GTR" H 5150 5200 50  0001 L BNN
+F 3 "http://www.memoryprotectiondevices.com/datasheets/BU2032SM-BT-GTR-datasheet.pdf" H 4900 5300 50  0001 L BNN
+F 4 "BU2032SM-BT-GCT-ND" H 5100 5100 50  0001 L BNN "Part#"
+	1    5500 5650
+	0    1    1    0   
+$EndComp
+$Comp
+L device:D D1
+U 1 1 5E2E8394
+P 5500 4400
+F 0 "D1" V 5600 4500 50  0000 C CNN
+F 1 "D" V 5500 4550 50  0000 C CNN
+F 2 "Diodes_SMD:D_SOD-323" H 5500 4400 50  0001 C CNN
+F 3 "https://toshiba.semicon-storage.com/info/docget.jsp?did=14077&prodName=CUS10S30" H 5500 4400 50  0001 C CNN
+F 4 "CUS10S30H3FCT-ND" H 5500 4400 50  0001 C CNN "Part#"
+	1    5500 4400
+	0    -1   1    0   
+$EndComp
+Text Label 3450 2950 0    50   ~ 0
+SCL1
+Text Label 5100 3500 0    50   ~ 0
+SDA1
 $EndSCHEMATC
