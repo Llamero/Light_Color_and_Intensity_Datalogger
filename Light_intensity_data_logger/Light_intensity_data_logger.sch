@@ -101,13 +101,13 @@ $EndComp
 $Comp
 L power:GND #PWR0106
 U 1 1 5E23FAAA
-P 3800 3050
-F 0 "#PWR0106" H 3800 2800 50  0001 C CNN
-F 1 "GND" H 3805 2877 50  0000 C CNN
-F 2 "" H 3800 3050 50  0001 C CNN
-F 3 "" H 3800 3050 50  0001 C CNN
-	1    3800 3050
-	-1   0    0    1   
+P 5850 3050
+F 0 "#PWR0106" H 5850 2800 50  0001 C CNN
+F 1 "GND" V 5750 3000 50  0000 C CNN
+F 2 "" H 5850 3050 50  0001 C CNN
+F 3 "" H 5850 3050 50  0001 C CNN
+	1    5850 3050
+	0    1    1    0   
 $EndComp
 Wire Wire Line
 	3450 2450 3700 2450
@@ -273,8 +273,6 @@ Text Label 850  2200 2    50   ~ 0
 DB7
 Text Label 850  1300 2    50   ~ 0
 E
-Text Label 10950 4750 0    50   ~ 0
-22*
 Text Label 4350 4250 2    50   ~ 0
 I2C_Pullup
 Text Label 850  1100 2    50   ~ 0
@@ -320,9 +318,9 @@ Text Label 8650 4950 2    50   ~ 0
 A1
 Text Label 8650 5150 2    50   ~ 0
 17
-Text Label 5900 2850 0    50   ~ 0
+Text Label 4950 2950 0    50   ~ 0
 16*
-Text Label 4100 1900 0    50   ~ 0
+Text Label 6150 1900 0    50   ~ 0
 17
 $Comp
 L power:GND #PWR0110
@@ -335,8 +333,6 @@ F 3 "" H 10950 4450 50  0001 C CNN
 	1    10950 4450
 	0    -1   -1   0   
 $EndComp
-Text Label 10950 4850 0    50   ~ 0
-21*
 $Comp
 L conn:Conn_01x01 J1
 U 1 1 5E1E9BAA
@@ -369,15 +365,9 @@ Text Label 5500 3750 0    50   ~ 0
 A1
 Text Label 8650 4050 2    50   ~ 0
 36
-Text Label 8650 3950 2    50   ~ 0
-35
-Text Label 8650 3850 2    50   ~ 0
-34
 Wire Wire Line
-	6000 2650 6100 2650
-Connection ~ 6000 2650
-Wire Wire Line
-	6000 2650 6000 1900
+	5050 2750 5150 2750
+Connection ~ 5050 2750
 Connection ~ 5900 3750
 Wire Wire Line
 	5700 3750 5900 3750
@@ -396,7 +386,7 @@ $EndComp
 Wire Wire Line
 	6000 3750 5900 3750
 Wire Wire Line
-	5900 2650 6000 2650
+	4950 2750 5050 2750
 Text Label 5150 1200 0    50   ~ 0
 11*
 Text Label 4350 1400 2    50   ~ 0
@@ -494,43 +484,43 @@ Text Label 8650 1650 2    50   ~ 0
 7*
 NoConn ~ 5300 3750
 $Comp
-L device:C C3
-U 1 1 5E2CDF37
-P 6250 2650
-F 0 "C3" H 6365 2696 50  0000 L CNN
-F 1 "0.1uF" H 6365 2605 50  0000 L CNN
-F 2 "Capacitors_SMD:C_0603" H 6288 2500 50  0001 C CNN
-F 3 "https://media.digikey.com/pdf/Data%20Sheets/Samsunghttps://www.yageo.com/upload/media/product/productsearch/datasheet/mlcc/UPY-GPHC_X7R_6.3V-to-50V_18.pdf" H 6250 2650 50  0001 C CNN
-F 4 "311-1344-1-ND" H 6250 2650 50  0001 C CNN "Part#"
-	1    6250 2650
-	0    1    1    0   
-$EndComp
-Connection ~ 4100 3050
-$Comp
 L device:C C2
+U 1 1 5E2CDF37
+P 5300 2750
+F 0 "C2" H 5415 2796 50  0000 L CNN
+F 1 "0.1uF" H 5415 2705 50  0000 L CNN
+F 2 "Capacitors_SMD:C_0603" H 5338 2600 50  0001 C CNN
+F 3 "https://media.digikey.com/pdf/Data%20Sheets/Samsunghttps://www.yageo.com/upload/media/product/productsearch/datasheet/mlcc/UPY-GPHC_X7R_6.3V-to-50V_18.pdf" H 5300 2750 50  0001 C CNN
+F 4 "311-1344-1-ND" H 5300 2750 50  0001 C CNN "Part#"
+	1    5300 2750
+	0    1    1    0   
+$EndComp
+Connection ~ 6150 3050
+$Comp
+L device:C C3
 U 1 1 5E2CD370
-P 3950 3050
-F 0 "C2" H 4065 3096 50  0000 L CNN
-F 1 "0.1uF" H 4065 3005 50  0000 L CNN
-F 2 "Capacitors_SMD:C_0603" H 3988 2900 50  0001 C CNN
-F 3 "https://media.digikey.com/pdf/Data%20Sheets/Samsunghttps://www.yageo.com/upload/media/product/productsearch/datasheet/mlcc/UPY-GPHC_X7R_6.3V-to-50V_18.pdf" H 3950 3050 50  0001 C CNN
-F 4 "311-1344-1-ND" H 3950 3050 50  0001 C CNN "Part#"
-	1    3950 3050
+P 6000 3050
+F 0 "C3" H 6115 3096 50  0000 L CNN
+F 1 "0.1uF" H 6115 3005 50  0000 L CNN
+F 2 "Capacitors_SMD:C_0603" H 6038 2900 50  0001 C CNN
+F 3 "https://media.digikey.com/pdf/Data%20Sheets/Samsunghttps://www.yageo.com/upload/media/product/productsearch/datasheet/mlcc/UPY-GPHC_X7R_6.3V-to-50V_18.pdf" H 6000 3050 50  0001 C CNN
+F 4 "311-1344-1-ND" H 6000 3050 50  0001 C CNN "Part#"
+	1    6000 3050
 	0    1    1    0   
 $EndComp
 Wire Wire Line
-	4100 1900 4100 3050
+	6150 1900 6150 3050
 Wire Wire Line
-	4150 3050 4100 3050
+	6200 3050 6150 3050
 $Comp
 L power:GND #PWR0113
 U 1 1 5E241861
-P 6400 2650
-F 0 "#PWR0113" H 6400 2400 50  0001 C CNN
-F 1 "GND" V 6405 2522 50  0000 R CNN
-F 2 "" H 6400 2650 50  0001 C CNN
-F 3 "" H 6400 2650 50  0001 C CNN
-	1    6400 2650
+P 5450 2750
+F 0 "#PWR0113" H 5450 2500 50  0001 C CNN
+F 1 "GND" V 5455 2622 50  0000 R CNN
+F 2 "" H 5450 2750 50  0001 C CNN
+F 3 "" H 5450 2750 50  0001 C CNN
+	1    5450 2750
 	0    -1   -1   0   
 $EndComp
 NoConn ~ 10950 4050
@@ -566,38 +556,34 @@ NoConn ~ 10950 950
 NoConn ~ 10950 850 
 NoConn ~ 8650 3650
 NoConn ~ 8650 3550
-Text Label 3450 3150 0    50   ~ 0
-SDA0
-Text Label 5050 2850 1    50   ~ 0
+Text Label 3950 2950 2    50   ~ 0
 SCL0
 Text Label 8650 4150 2    50   ~ 0
 SCL1
 $Comp
 L power:GND #PWR0114
 U 1 1 5E2152EA
-P 4750 2900
-F 0 "#PWR0114" H 4750 2650 50  0001 C CNN
-F 1 "GND" V 4755 2772 50  0000 R CNN
-F 2 "" H 4750 2900 50  0001 C CNN
-F 3 "" H 4750 2900 50  0001 C CNN
-	1    4750 2900
+P 6800 2900
+F 0 "#PWR0114" H 6800 2650 50  0001 C CNN
+F 1 "GND" V 6805 2772 50  0000 R CNN
+F 2 "" H 6800 2900 50  0001 C CNN
+F 3 "" H 6800 2900 50  0001 C CNN
+	1    6800 2900
 	0    -1   -1   0   
 $EndComp
 Text Label 8650 1150 2    50   ~ 0
 2*
 Wire Wire Line
-	4750 3050 4800 3050
-Wire Wire Line
-	5100 2850 5050 2850
+	6800 3050 6850 3050
 $Comp
 L power:GND #PWR0115
 U 1 1 5E1FF1C2
-P 5900 3250
-F 0 "#PWR0115" H 5900 3000 50  0001 C CNN
-F 1 "GND" V 5905 3122 50  0000 R CNN
-F 2 "" H 5900 3250 50  0001 C CNN
-F 3 "" H 5900 3250 50  0001 C CNN
-	1    5900 3250
+P 4950 3350
+F 0 "#PWR0115" H 4950 3100 50  0001 C CNN
+F 1 "GND" V 4955 3222 50  0000 R CNN
+F 2 "" H 4950 3350 50  0001 C CNN
+F 3 "" H 4950 3350 50  0001 C CNN
+	1    4950 3350
 	0    -1   -1   0   
 $EndComp
 $Comp
@@ -616,25 +602,25 @@ Text Label 8650 2250 2    50   ~ 0
 $Comp
 L Ben_custom:TSL25911FN U3
 U 1 1 5E1E6521
-P 4450 3050
-F 0 "U3" H 4450 2685 50  0000 C CNN
-F 1 "TSL25911FN" H 4450 2776 50  0000 C CNN
-F 2 "Ben_Custom:TSL25911FN" H 4050 3500 50  0001 C CNN
-F 3 "https://ams.com/documents/20143/36005/TSL2591_DS000338_6-00.pdf" H 4050 3500 50  0001 C CNN
-F 4 "TSL25911FNCT-ND" H 4450 3050 50  0001 C CNN "Part#"
-	1    4450 3050
+P 6500 3050
+F 0 "U3" H 6500 2685 50  0000 C CNN
+F 1 "TSL25911FN" H 6500 2776 50  0000 C CNN
+F 2 "Ben_Custom:TSL25911FN" H 6100 3500 50  0001 C CNN
+F 3 "https://ams.com/documents/20143/36005/TSL2591_DS000338_6-00.pdf" H 6100 3500 50  0001 C CNN
+F 4 "TSL25911FNCT-ND" H 6500 3050 50  0001 C CNN "Part#"
+	1    6500 3050
 	-1   0    0    1   
 $EndComp
 $Comp
 L Ben_custom:TCS34725FN U2
 U 1 1 5E1E525D
-P 5500 2950
-F 0 "U2" H 5500 3517 50  0000 C CNN
-F 1 "TCS34725FN" H 5500 3426 50  0000 C CNN
-F 2 "Ben_Custom:TCS34725" H 5150 3450 50  0001 L BNN
-F 3 "https://ams.com/documents/20143/36005/TCS3472_DS000390_2-00.pdf" H 5150 2450 50  0001 L BNN
-F 4 "TCS34725FNCT-ND" H 5500 2950 50  0001 C CNN "Part#"
-	1    5500 2950
+P 4550 3050
+F 0 "U2" H 4550 3617 50  0000 C CNN
+F 1 "TCS34725FN" H 4550 3526 50  0000 C CNN
+F 2 "Ben_Custom:TCS34725" H 4200 3550 50  0001 L BNN
+F 3 "https://ams.com/documents/20143/36005/TCS3472_DS000390_2-00.pdf" H 4200 2550 50  0001 L BNN
+F 4 "TCS34725FNCT-ND" H 4550 3050 50  0001 C CNN "Part#"
+	1    4550 3050
 	1    0    0    -1  
 $EndComp
 Text Notes 4150 1600 0    50   ~ 0
@@ -714,9 +700,9 @@ $EndComp
 Connection ~ 7100 5200
 Text Label 10950 5150 0    50   ~ 0
 SDA0
-Text Label 4750 3200 3    50   ~ 0
+Text Label 6800 3200 3    50   ~ 0
 SCL1
-Text Label 4150 3200 3    50   ~ 0
+Text Label 6200 3200 3    50   ~ 0
 SDA1
 Wire Wire Line
 	5500 4550 5500 4950
@@ -755,9 +741,7 @@ F 4 "CUS10S30H3FCT-ND" H 5500 4400 50  0001 C CNN "Part#"
 	1    5500 4400
 	0    -1   1    0   
 $EndComp
-Text Label 3450 2950 0    50   ~ 0
-SCL0
-Text Label 5100 3050 3    50   ~ 0
+Text Label 3950 3150 2    50   ~ 0
 SDA0
 Text Label 10950 4950 0    50   ~ 0
 20
@@ -765,11 +749,11 @@ Text Label 3200 1900 0    50   ~ 0
 20
 Text Label 10950 4650 0    50   ~ 0
 23
-Text Label 6000 1900 0    50   ~ 0
+Text Label 5050 1900 0    50   ~ 0
 23
 Text Label 8650 3750 2    50   ~ 0
 33*
-Text Label 4800 3050 0    50   ~ 0
+Text Label 6850 3050 0    50   ~ 0
 33*
 Text Label 4500 3750 1    50   ~ 0
 SDA0
@@ -819,4 +803,16 @@ NoConn ~ 10950 4550
 Text Label 5150 1400 0    50   ~ 0
 2*
 NoConn ~ 8650 950 
+NoConn ~ 8650 2550
+NoConn ~ 8650 2650
+NoConn ~ 8650 3850
+NoConn ~ 8650 3950
+NoConn ~ 10950 4850
+NoConn ~ 10950 4750
+Wire Wire Line
+	5050 1900 5050 2750
+Wire Wire Line
+	4150 2950 3450 2950
+Wire Wire Line
+	4150 3150 3450 3150
 $EndSCHEMATC
