@@ -176,10 +176,10 @@ $EndComp
 Wire Wire Line
 	2050 1550 2050 1900
 $Comp
-L device:R R1
+L device:R R2
 U 1 1 5E2EF264
 P 2200 1550
-F 0 "R1" V 1993 1550 50  0000 C CNN
+F 0 "R2" V 1993 1550 50  0000 C CNN
 F 1 "2" V 2084 1550 50  0000 C CNN
 F 2 "Resistors_SMD:R_0603" V 2130 1550 50  0001 C CNN
 F 3 "https://www.yageo.com/upload/media/product/productsearch/datasheet/rchip/PYu-RC_Group_51_RoHS_L_10.pdf" H 2200 1550 50  0001 C CNN
@@ -215,10 +215,10 @@ F 4 "401-2002-1-ND" H 6500 6100 60  0001 L CNN "Part#"
 	1    0    0    1   
 $EndComp
 $Comp
-L device:D D2
+L device:D D1
 U 1 1 5E1F5931
 P 6650 5350
-F 0 "D2" H 6650 5134 50  0000 C CNN
+F 0 "D1" H 6650 5134 50  0000 C CNN
 F 1 "D" H 6650 5225 50  0000 C CNN
 F 2 "Diodes_SMD:D_SOD-323" H 6650 5350 50  0001 C CNN
 F 3 "https://toshiba.semicon-storage.com/info/docget.jsp?did=14077&prodName=CUS10S30" H 6650 5350 50  0001 C CNN
@@ -372,10 +372,10 @@ Connection ~ 5900 3750
 Wire Wire Line
 	5700 3750 5900 3750
 $Comp
-L Ben_custom:EXB-2HV103JV_-_8x10k_resistor_array R2
+L Ben_custom:EXB-2HV103JV_-_8x10k_resistor_array R1
 U 1 1 5E2CE816
 P 5900 3750
-F 0 "R2" V 6044 3829 60  0000 L CNN
+F 0 "R1" V 6044 3829 60  0000 L CNN
 F 1 "EXB-2HV472JV_-_8x4.7k_resistor_array" V 6150 3829 60  0000 L CNN
 F 2 "Ben_Custom:Resistor_array_1506_8x" H 6150 3415 60  0001 C CNN
 F 3 "https://industrial.panasonic.com/cdbs/www-https://industrial.panasonic.com/cdbs/www-data/pdf/AOC0000/AOC0000C14.pdf" V 6650 4200 60  0001 L CNN
@@ -686,10 +686,10 @@ $EndComp
 Wire Wire Line
 	6650 5200 7100 5200
 $Comp
-L device:D D3
+L device:D D2
 U 1 1 5E274B07
 P 7100 5350
-F 0 "D3" H 7100 5134 50  0000 C CNN
+F 0 "D2" H 7100 5134 50  0000 C CNN
 F 1 "D" H 7100 5225 50  0000 C CNN
 F 2 "Diodes_SMD:D_SOD-323" H 7100 5350 50  0001 C CNN
 F 3 "https://toshiba.semicon-storage.com/info/docget.jsp?did=14077&prodName=CUS10S30" H 7100 5350 50  0001 C CNN
@@ -730,10 +730,10 @@ F 4 "BU2032SM-BT-GCT-ND" H 5100 5100 50  0001 L BNN "Part#"
 	0    1    1    0   
 $EndComp
 $Comp
-L device:D D1
+L device:D D3
 U 1 1 5E2E8394
 P 5500 4400
-F 0 "D1" V 5600 4500 50  0000 C CNN
+F 0 "D3" V 5600 4500 50  0000 C CNN
 F 1 "D" V 5500 4550 50  0000 C CNN
 F 2 "Diodes_SMD:D_SOD-323" H 5500 4400 50  0001 C CNN
 F 3 "https://toshiba.semicon-storage.com/info/docget.jsp?did=14077&prodName=CUS10S30" H 5500 4400 50  0001 C CNN
