@@ -79,10 +79,10 @@ L device:C C1
 U 1 1 5E23C716
 P 3450 2300
 F 0 "C1" H 3565 2346 50  0000 L CNN
-F 1 "0.1uF" H 3565 2255 50  0000 L CNN
+F 1 "1uF" H 3565 2255 50  0000 L CNN
 F 2 "Capacitors_SMD:C_0603" H 3488 2150 50  0001 C CNN
-F 3 "https://media.digikey.com/pdf/Data%20Sheets/Samsunghttps://www.yageo.com/upload/media/product/productsearch/datasheet/mlcc/UPY-GPHC_X7R_6.3V-to-50V_18.pdf" H 3450 2300 50  0001 C CNN
-F 4 "311-1344-1-ND" H 3450 2300 50  0001 C CNN "Part#"
+F 3 "https://product.tdk.com/info/en/catalog/datasheets/mlcc_commercial_general_en.pdf?ref_disty=digikey" H 3450 2300 50  0001 C CNN
+F 4 "445-1604-1-ND" H 3450 2300 50  0001 C CNN "Part#"
 	1    3450 2300
 	1    0    0    -1  
 $EndComp
@@ -455,31 +455,6 @@ Text Label 8300 1900 2    50   ~ 0
 Text Label 8300 1700 2    50   ~ 0
 7*
 NoConn ~ 5300 3750
-$Comp
-L device:C C2
-U 1 1 5E2CDF37
-P 5300 2750
-F 0 "C2" H 5415 2796 50  0000 L CNN
-F 1 "0.1uF" H 5415 2705 50  0000 L CNN
-F 2 "Capacitors_SMD:C_0603" H 5338 2600 50  0001 C CNN
-F 3 "https://media.digikey.com/pdf/Data%20Sheets/Samsunghttps://www.yageo.com/upload/media/product/productsearch/datasheet/mlcc/UPY-GPHC_X7R_6.3V-to-50V_18.pdf" H 5300 2750 50  0001 C CNN
-F 4 "311-1344-1-ND" H 5300 2750 50  0001 C CNN "Part#"
-	1    5300 2750
-	0    1    1    0   
-$EndComp
-Connection ~ 6150 3050
-$Comp
-L device:C C3
-U 1 1 5E2CD370
-P 6000 3050
-F 0 "C3" H 6115 3096 50  0000 L CNN
-F 1 "0.1uF" H 6115 3005 50  0000 L CNN
-F 2 "Capacitors_SMD:C_0603" H 6038 2900 50  0001 C CNN
-F 3 "https://media.digikey.com/pdf/Data%20Sheets/Samsunghttps://www.yageo.com/upload/media/product/productsearch/datasheet/mlcc/UPY-GPHC_X7R_6.3V-to-50V_18.pdf" H 6000 3050 50  0001 C CNN
-F 4 "311-1344-1-ND" H 6000 3050 50  0001 C CNN "Part#"
-	1    6000 3050
-	0    1    1    0   
-$EndComp
 Wire Wire Line
 	6150 1900 6150 3050
 Wire Wire Line
@@ -823,4 +798,29 @@ Text Label 8300 5000 2    50   ~ 0
 A1
 Text Label 8300 4900 2    50   ~ 0
 A0
+$Comp
+L device:C C2
+U 1 1 5E252D52
+P 5300 2750
+F 0 "C2" V 5150 2700 50  0000 L CNN
+F 1 "1uF" V 5450 2700 50  0000 L CNN
+F 2 "Capacitors_SMD:C_0603" H 5338 2600 50  0001 C CNN
+F 3 "https://product.tdk.com/info/en/catalog/datasheets/mlcc_commercial_general_en.pdf?ref_disty=digikey" H 5300 2750 50  0001 C CNN
+F 4 "445-1604-1-ND" H 5300 2750 50  0001 C CNN "Part#"
+	1    5300 2750
+	0    1    1    0   
+$EndComp
+$Comp
+L device:C C3
+U 1 1 5E2531ED
+P 6000 3050
+F 0 "C3" V 5850 3000 50  0000 L CNN
+F 1 "1uF" V 6150 3000 50  0000 L CNN
+F 2 "Capacitors_SMD:C_0603" H 6038 2900 50  0001 C CNN
+F 3 "https://product.tdk.com/info/en/catalog/datasheets/mlcc_commercial_general_en.pdf?ref_disty=digikey" H 6000 3050 50  0001 C CNN
+F 4 "445-1604-1-ND" H 6000 3050 50  0001 C CNN "Part#"
+	1    6000 3050
+	0    1    1    0   
+$EndComp
+Connection ~ 6150 3050
 $EndSCHEMATC
