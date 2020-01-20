@@ -388,15 +388,7 @@ F 0 "S1" H 4750 1647 60  0000 C CNN
 F 1 "JS5208" H 4750 1541 60  0000 C CNN
 F 2 "digikey-footprints:Switch_Nav_12.4x12.4mm_SMD_JS5208" H 4950 1400 60  0001 L CNN
 F 3 "http://spec_sheets.e-switch.com/specs/P200020.pdf" H 4950 1500 60  0001 L CNN
-F 4 "EG4561-ND" H 4950 1600 60  0001 L CNN "Digi-Key_PN"
-F 5 "JS5208" H 4950 1700 60  0001 L CNN "MPN"
-F 6 "Switches" H 4950 1800 60  0001 L CNN "Category"
-F 7 "Navigation Switches, Joystick" H 4950 1900 60  0001 L CNN "Family"
-F 8 "http://spec_sheets.e-switch.com/specs/P200020.pdf" H 4950 2000 60  0001 L CNN "DK_Datasheet_Link"
-F 9 "/product-detail/en/e-switch/JS5208/EG4561-ND/1739634" H 4950 2100 60  0001 L CNN "DK_Detail_Page"
-F 10 "SWITCH NAVIGATION 20MA 15V" H 4950 2200 60  0001 L CNN "Description"
-F 11 "E-Switch" H 4950 2300 60  0001 L CNN "Manufacturer"
-F 12 "Active" H 4950 2400 60  0001 L CNN "Status"
+F 4 "EG4561-ND" H 4950 1600 60  0001 L CNN "Part#"
 	1    4750 1200
 	1    0    0    -1  
 $EndComp
