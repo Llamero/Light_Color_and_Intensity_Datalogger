@@ -815,4 +815,12 @@ F 4 "445-1604-1-ND" H 6000 3050 50  0001 C CNN "Part#"
 	0    1    1    0   
 $EndComp
 Connection ~ 6150 3050
+Wire Wire Line
+	6100 4700 6100 4400
+Wire Wire Line
+	6100 4400 6900 4400
+Wire Wire Line
+	6900 4400 6900 4600
+Connection ~ 6100 4700
+Connection ~ 6900 4600
 $EndSCHEMATC
