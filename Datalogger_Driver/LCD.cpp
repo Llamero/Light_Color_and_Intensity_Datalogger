@@ -5,17 +5,22 @@
 #include "Arduino.h"
 #include "LCD.h"
 
-LCD::LCD(int *DB_pin_array, int DB_length, int RS_pin, int RW_pin, int E_pin){
+LCD::LCD(int *DB_pin_array, int DB_length, int RS_pin, int RW_pin, int E_pin, int LCD_toggle_pin, int LED_PWM_pin, int contrast_pin){
   _DB_pin_array = DB_pin_array;
   _RS_pin = RS_pin;
   _RW_pin = RW_pin;
   _E_pin = E_pin;
   _DB_length = DB_length;
+  _LCD_toggle_pin = LCD_toggle_pin;
+  _LED_PWM_pin = LED_PWM_pin;
+  _contrast_pin = contrast_pin;
 }
 
+//PUBLIC---------------------------------------------------------------------------------------------------------------------------------------------
 //Start display from power on - http://www.newhavendisplay.com/specs/NHD-0420H1Z-FL-GBW-33V3.pdf
 void LCD::initializeLCD(){
   outputPins();
+  digitalWriteFast(_LCD_toggle_pin, HIGH); //Turn on LCD
   digitalWriteFast(_E_pin, LOW);
   delay(100); //Wait >40 msec after power is applied
   commandLCD(0x30); //command 0x30 = Wake up
@@ -43,9 +48,17 @@ void LCD::outputPins(){
   pinMode(_RS_pin, OUTPUT);
   pinMode(_RW_pin, OUTPUT);
   pinMode(_E_pin, OUTPUT);
+  pinMode(_LCD_toggle_pin, OUTPUT);
+  pinMode(_LED_PWM_pin, OUTPUT);
 }
 
-//------------------------------------------------------------------------------------------
+//Adjust LCD contrast
+void LCD::setLCDcontrast(float contrast){
+  int bit_contrast = round(contrast*4095);
+  analogWrite(_contrast_pin, bit_contrast);
+}
+
+//PRIVATE------------------------------------------------------------------------------------------
 //Toggle E pin to latch DB 
 void LCD::latch(){
   digitalWriteFast(_E_pin, HIGH);
@@ -55,16 +68,16 @@ void LCD::latch(){
 
 //Send a byte of data to the LCD
 void LCD::sendDBchar(char i){
-  //If in 4 pin mode, post 4 LSB then 4 MSB
+  //If in 4 pin mode, post 4 MSB then 4 LSB
   if (_DB_length == 4){
-    for(int a=0; a<_DB_length; a++){
-      digitalWriteFast(_DB_pin_array[a], i%2);
-      i = i>>1;
+    for(int a=_DB_length-1; a>=0; a--){
+      digitalWriteFast(_DB_pin_array[a], i & B10000000);
+      i = i<<1;
     }
     latch();
-    for(int a=0; a<_DB_length; a++){
-      digitalWriteFast(_DB_pin_array[a], i%2);
-      i = i>>1;
+    for(int a=_DB_length-1; a>=0; a--){
+      digitalWriteFast(_DB_pin_array[a], i & B10000000);
+      i = i<<1;
     }
     latch();      
   }
