@@ -5,7 +5,7 @@
 #include "Arduino.h"
 #include "LCD.h"
 
-LCD::LCD(int *DB_pin_array, int DB_length, int RS_pin, int RW_pin, int E_pin, int LCD_toggle_pin, int LED_PWM_pin, int contrast_pin){
+LCD::LCD(int *DB_pin_array, int DB_length, int RS_pin, int RW_pin, int E_pin, int LCD_toggle_pin, int LED_PWM_pin, int contrast_pin, int resolution){
   _DB_pin_array = DB_pin_array;
   _RS_pin = RS_pin;
   _RW_pin = RW_pin;
@@ -14,6 +14,7 @@ LCD::LCD(int *DB_pin_array, int DB_length, int RS_pin, int RW_pin, int E_pin, in
   _LCD_toggle_pin = LCD_toggle_pin;
   _LED_PWM_pin = LED_PWM_pin;
   _contrast_pin = contrast_pin;
+  _max_analog = 1<<resolution; //Calcualte maximum value for analog write
 }
 
 //PUBLIC---------------------------------------------------------------------------------------------------------------------------------------------
@@ -61,13 +62,15 @@ void LCD::outputPins(){
 }
 
 //Adjust LCD contrast
-void LCD::setLCDcontrast(int bit_contrast){
+void LCD::setLCDcontrast(float contrast){
+  bit_contrast = round(constrast * _max_analog); //Values will automatically get mapped to max of 12-bit - https://www.pjrc.com/teensy/td_pulse.html
   analogWrite(_contrast_pin, bit_contrast);
 }
 
 //Adjust backlightintensity
-void LCD::backlight(int bit_intensity){
-  analogWrite(_LED_PWM_pin, bit_intensity);
+void LCD::backlight(float intensity){
+  bit_contrast = round(constrast * _max_analog);
+  analogWrite(_contrast_pin, bit_contrast);
 }
 
 //PRIVATE------------------------------------------------------------------------------------------
