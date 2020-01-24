@@ -61,9 +61,13 @@ void LCD::outputPins(){
 }
 
 //Adjust LCD contrast
-void LCD::setLCDcontrast(float contrast){
-  int bit_contrast = round(contrast*4095);
+void LCD::setLCDcontrast(int bit_contrast){
   analogWrite(_contrast_pin, bit_contrast);
+}
+
+//Adjust backlightintensity
+void LCD::backlight(int bit_intensity){
+  analogWrite(_LED_PWM_pin, bit_intensity);
 }
 
 //PRIVATE------------------------------------------------------------------------------------------
