@@ -10,7 +10,7 @@ class LCD
 {
   public:
     LCD(int *DB_pin_array, int DB_length, int RS_pin, int RW_pin, int E_pin, int LCD_toggle_pin, int LED_PWM_pin, int contrast_pin);
-    void initializeLCD();
+    boolean initializeLCD();
     void outputPins();
     void setLCDcontrast(float contrast);
 
@@ -28,6 +28,7 @@ class LCD
     void sendDBchar(char i); //Send a byte of data to the LCD
     void commandLCD(char i); //Send a command
     void writeLCD(char i); //Send a character
+    byte checkBusy(); //Returns the busy flag and address counter of LCD
 };
 
 #endif

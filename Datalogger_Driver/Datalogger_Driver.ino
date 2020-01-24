@@ -5,6 +5,7 @@
 #include "LCD.h" //Display
 #include <Wire.h> //I2C
 #include <TimeLib.h> //Set RTC time and get time strings
+#include <Snooze.h> //Put Teensy into low power state between log points
 
 //Setup LCD pin numbers
 const int DB_pin_array[] = {32, 31, 8, 6, 5, 4, 3, 1}; //List of 4 (DB4-DB7) or 8 (DB0-DB7) pins to send data to LCD

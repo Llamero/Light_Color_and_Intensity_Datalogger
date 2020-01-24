@@ -18,7 +18,7 @@ LCD::LCD(int *DB_pin_array, int DB_length, int RS_pin, int RW_pin, int E_pin, in
 
 //PUBLIC---------------------------------------------------------------------------------------------------------------------------------------------
 //Start display from power on - http://www.newhavendisplay.com/specs/NHD-0420H1Z-FL-GBW-33V3.pdf
-void LCD::initializeLCD(){
+boolean LCD::initializeLCD(){
   outputPins();
   digitalWriteFast(_LCD_toggle_pin, HIGH); //Turn on LCD
   digitalWriteFast(_E_pin, LOW);
@@ -33,11 +33,16 @@ void LCD::initializeLCD(){
   commandLCD(0x10); //Set cursor
   commandLCD(0x0c); //Display ON; Cursor ON
   commandLCD(0x06); //Entry mode set
-  for(int a=0; a<_DB_length; a++){
-    Serial.print(_DB_pin_array[a]);
-    Serial.print(" ");
+
+  //Check if LCD is functioning
+  commandLCD(0xC0); //Set cursor to bottom right corner - 0xC0 will return same address in 4 and 8-bit.
+  byte response = checkBusy();
+  Serial.println(response);
+  if(response == 0xC0){ //Confirm that expected reponse was received
+    commandLCD(0x02); //Home the cursor
+    return true;
   }
-  Serial.println();
+  return false;
 }
 
 //Set pins to output
@@ -103,4 +108,28 @@ void LCD::writeLCD(char i){
   digitalWriteFast(_RS_pin, HIGH); //Send data
   digitalWriteFast(_RW_pin, LOW); //Write
   sendDBchar(i);
+}
+
+//Check if LCD is busy
+byte LCD::checkBusy(){
+  //Set DB pins as input
+  for(int a=_DB_length-1; a>=0; a--){
+      pinMode(_DB_pin_array[a], INPUT_PULLUP);
+  }
+  //Send command to get busy flag
+  digitalWriteFast(_RS_pin, LOW); //Send instruction
+  digitalWriteFast(_RW_pin, HIGH); //Read
+  
+  //Get flag (DB7) and address counter (DB0-DB6)
+  byte response = 0;
+  for(int a=_DB_length-1; a>=0; a--){
+    if(digitalRead(_DB_pin_array[a])){
+      if (_DB_length == 4) bitSet(response, a+4); //If 4bit mode used, shift 4 bits to MSB position
+      else bitSet(response, a);  
+    }
+  }
+
+  outputPins(); //Set the pins back to output
+  
+  return response;
 }
