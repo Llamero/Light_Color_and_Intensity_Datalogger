@@ -1,4 +1,11 @@
-#include "LCD.h"
+#include "Adafruit_BME280.h" //Temp, pressure, humidity sensor
+#include "Adafruit_Sensor.h" //Universal sensor API
+#include "Adafruit_TCS34725.h" //Color Sensor
+#include "Adafruit_TSL2591.h" //Light Sensor
+#include "LCD.h" //Display
+#include <Wire.h> //I2C
+
+Adafruit_TSL2591 tsl = Adafruit_TSL2591(2591); // pass in a number for the sensor identifier (for your use later)
 
 //Setup LCD pin numbers
 const int DB_pin_array[] = {32, 31, 8, 6, 5, 4, 3, 1}; //List of 4 (DB4-DB7) or 8 (DB0-DB7) pins to send data to LCD
@@ -18,8 +25,12 @@ void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
   analogWriteResolution(12);
+  Wire1.begin();
+  //Wire1.setClock(400000);
   wakeUSB();
   lcd.initializeLCD();
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWriteFast(LED_BUILTIN, LOW);
 }
 
 void loop() {
@@ -27,7 +38,11 @@ void loop() {
   lcd.setLCDcontrast(contrast);
   inc = inc + 0.02;
   if(inc>2*PI) inc = 0;
-  //delayMicroseconds(10);
+  tsl.begin(&Wire1);
+  digitalWriteFast(LED_BUILTIN, HIGH);
+  delayMicroseconds(100);
+  digitalWriteFast(LED_BUILTIN, LOW);
+  delayMicroseconds(100);
 }
 
 void wakeUSB(){
