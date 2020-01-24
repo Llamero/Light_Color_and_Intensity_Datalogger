@@ -13,6 +13,7 @@ class LCD
     boolean initializeLCD();
     void outputPins();
     void setLCDcontrast(float contrast);
+    void setLCDbacklight(float intensity);
 
   private:
     int *_DB_pin_array; //Array or 4 or 8 DB pins for driver
@@ -22,7 +23,8 @@ class LCD
     int _DB_length; //Number of DB pins based on array length (4 or 8)
     int _LCD_toggle_pin; //Set to high to power on LCD
     int _LED_PWM_pin; //Drive LED backlight intensity
-    int _contrast_pin = A21; //DAC pin for addjusting diplay contrast
+    int _contrast_pin; //DAC pin for addjusting diplay contrast
+    int _resolution; //Analog write resolution
 
     void latch(); //Toggle E pin to latch DB
     void sendDBchar(char i); //Send a byte of data to the LCD
