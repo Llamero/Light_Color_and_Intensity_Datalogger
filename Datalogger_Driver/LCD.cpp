@@ -41,6 +41,10 @@ boolean LCD::initializeLCD(){
     commandLCD(0x02); //Home the cursor
     return true;
   }
+  digitalWriteFast(_LCD_toggle_pin, LOW); //Turn off LCD power if LCD fails to respond
+  digitalWriteFast(_LED_PWM_pin, LOW); //Turn off backlight if LCD fails to respond
+  analogWrite(_contrast_pin, 0); //Turn off LCD contrast if LCD fails to respond
+  DAC0_C0 = ~DAC_C0_DACEN; //Disable DAC pin DAC0 to save power on hibernate - https://github.com/duff2013/Snooze/issues/12
   return false;
 }
 
