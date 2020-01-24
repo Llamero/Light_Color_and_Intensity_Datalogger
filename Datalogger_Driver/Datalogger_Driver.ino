@@ -24,12 +24,12 @@ const int color_power_pin = 23;
 const int light_power_pin = 17;
 const int color_interrupt_pin = 16; //Set interrupt pins
 const int light_interrupt_pin = 33;
-const TwoWire* temp_port = &Wire; //Set I2C (wire) ports
-const TwoWire* color_port = &Wire;
-const TwoWire* light_port = &Wire1;
+TwoWire* temp_port = &Wire; //Set I2C (wire) ports
+TwoWire* color_port = &Wire;
+TwoWire* light_port = &Wire1;
 
 //Arrays for storing display Strings
-String boot_array[5] = {"Boot status:", "", "", "", ""}; //Array for boot display
+char boot_array[10][20]; //Array for boot display
 
 //Initialize libraries
 Adafruit_BME280 temp_sensor; //Create instance of temp sensor
@@ -41,6 +41,13 @@ time_t t = 0;
 float inc = 0;
 float contrast = 0;
 void setup() {
+  int boot_index = 0;
+  strcpy(boot_array[boot_index++], "Boot status:       ");
+
+  //Turn off Teensy LED
+  pinMode(LED_BUILTIN, OUTPUT); 
+  digitalWriteFast(LED_BUILTIN, LOW);
+  
   //Power on the sensors
   pinMode(temp_power_pin, OUTPUT);
   pinMode(color_power_pin, OUTPUT);
@@ -53,32 +60,37 @@ void setup() {
   Serial.begin(9600); //Baud rate is ignored and negotiated with computer for max speed
   wakeUSB();
   
-  //Setup I2C communication - sensor libraries will initialize I2C communications
-  Wire.setClock(400000); //Set I2C clock speeds to max that chips support
+  //Setup I2C communication to highest speed chips sill support - sensor libraries will initialize I2C communications
+  Wire.setClock(400000); 
   Wire1.setClock(400000);
 
   //Start LCD display
   analogWriteResolution(16); //Set DAC and PWM resolution
-  lcd.initializeLCD(); //Start LCD display
+  if(lcd.initializeLCD()){ //Start LCD display and confirm if present
+     strcpy(boot_array[boot_index++], "Display initialized ");
+  }
+  else{
+    strcpy(boot_array[boot_index++], "Display not found   ");
+  }
 
   //Synchronize Teensy clock to computer clock
   setSyncProvider(getTeensy3Time); //Sync to computer clock - do not use () in function as argument
   if (timeStatus()!= timeSet) { //If sync failed
-    boot_array[1] = "RTC time sync fail:";
+    strcpy(boot_array[boot_index++], "RTC time sync fail  ");
   } else { // if Sync successful
-    boot_array[1] = "RTC sync successful:";
+    strcpy(boot_array[boot_index++], "RTC sync successful ");
   }
   t = now();
-  boot_array[2] = timeString(t); //Write current time to boot screen
-  
-  
-  
+  timeString(t, boot_array[boot_index++]); //Write current time to boot screen
+
   while(!Serial);
-  Serial.println(boot_array[0]);
-  Serial.println(boot_array[1]);
-  Serial.println(boot_array[2]);
-  pinMode(LED_BUILTIN, OUTPUT); //Turn off LED
-  digitalWriteFast(LED_BUILTIN, LOW);
+  for(int a = 0; a<boot_index; a++){
+    for(int b=0; b<20; b++){
+      Serial.print(boot_array[a][b]);
+    }
+    Serial.println();
+  }
+
 }
 
 void loop() {
@@ -98,26 +110,39 @@ time_t getTeensy3Time(){
 }
 
 //Create a time string formated as "year month day hour:minute:second"
-String timeString(time_t unix_t){
-  String t = "";
-  t += year(unix_t);
-  t += " ";
-  if(month(unix_t) < 10) t += "0";
-  t += month(unix_t);
-  t += " ";
-  if(day(unix_t) < 10) t+= "0";
-  t += day(unix_t); 
-  t += " "; 
-  if(hour(unix_t) < 10) t+= "0";
-  t += hour(unix_t);
-  t += ":";
-  if(minute(unix_t) < 10) t+= "0";
-  t += minute(unix_t);
-  t += ":";  
-  if(second(unix_t) < 10) t+= "0";
-  t += second(unix_t);
-  return t; 
+void timeString(time_t unix_t, char (*t)){ //Syndax for array in 2D array - https://stackoverflow.com/questions/16486276/c-pointer-declaration-for-pointing-to-a-row-of-2-d-array
+  char buf[4];
+  int a; 
+  sprintf(buf, "%d", year(unix_t));
+  for(a=0; a<4; a++){
+    t[a] = buf[a];
+  }
+  t[a++] = ' ';
+  a = addLeadingZero(t, month(unix_t), a);
+  t[a++] = ' ';
+  a = addLeadingZero(t, day(unix_t), a);
+  t[a++] = ' ';
+  a = addLeadingZero(t, hour(unix_t), a);
+  t[a++] = ':';
+  a = addLeadingZero(t, minute(unix_t), a);
+  t[a++] = ':';
+  a = addLeadingZero(t, second(unix_t), a);
 }
+
+int addLeadingZero(char *string, int num, int i){
+  char buf[2];
+  sprintf(buf, "%d", num);
+  if(num < 10){
+    string[i++] = '0';
+    string[i++] = buf[0];
+  }
+  else{
+    string[i++] = buf[0];
+    string[i++] = buf[1];
+  }
+  return i;
+}
+
 
 void wakeUSB(){
     elapsedMillis time = 0;

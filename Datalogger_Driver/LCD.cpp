@@ -37,7 +37,6 @@ boolean LCD::initializeLCD(){
   //Check if LCD is functioning
   commandLCD(0xC0); //Set cursor to bottom right corner - 0xC0 will return same address in 4 and 8-bit.
   byte response = checkBusy();
-  Serial.println(response);
   if(response == 0xC0){ //Confirm that expected reponse was received
     commandLCD(0x02); //Home the cursor
     return true;
