@@ -17,7 +17,9 @@ int LCD_toggle_pin = 24; //Set to high to power on LCD
 int LED_PWM_pin = 29; //Drive LED backlight intensity
 int contrast_pin = A21; //DAC pin for addjusting diplay contrast
 int n_DB_pin = sizeof(DB_pin_array)/sizeof(DB_pin_array[0]);
-
+int analog_resolution = 16; //Number of bits in PWM and DAC analog  - PWM cap is 16, DAC cap is 12 - auto capped in code - https://www.pjrc.com/teensy/td_pulse.html
+int analog_freq = round(24000000/(1<<analog_resolution); //Calculate freq based on fastest for minimum clock speed - 24 MHz
+                        
 //Setup sensor pin numbers
 int temp_power_pin = 20; //Set Vcc pins
 int color_power_pin = 23;
@@ -28,14 +30,25 @@ TwoWire* temp_port = &Wire; //Set I2C (wire) ports
 TwoWire* color_port = &Wire;
 TwoWire* light_port = &Wire1;
 
+//Component status
+boolean display_present = false;
+boolean display_on = false;
+boolean backlight_on = false;
+boolean temp_present = false;
+boolean temp_on = false;
+boolean color_present = false;
+boolean color_on = false;
+boolean light_present = false;
+boolean light_on = false;
+
 //Arrays for storing display Strings
-char boot_array[10][20]; //Array for boot display
+char boot_array[12][20]; //Array for boot display
 
 //Initialize libraries
 Adafruit_BME280 temp_sensor; //Create instance of temp sensor
 Adafruit_TCS34725 color_sensor = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_700MS, TCS34725_GAIN_60X); //Create instance of color sensor initialize with peak sensitivity
 Adafruit_TSL2591 light_sensor = Adafruit_TSL2591(2591); //Create instance of light sensor - number is sensor ID
-LCD lcd(DB_pin_array, n_DB_pin, RS_pin, RW_pin, E_pin, LCD_toggle_pin, LED_PWM_pin, contrast_pin); //Create instance of LCD display
+LCD lcd(DB_pin_array, n_DB_pin, RS_pin, RW_pin, E_pin, LCD_toggle_pin, LED_PWM_pin, contrast_pin, analog_resolution); //Create instance of LCD display
 
 time_t t = 0;
 float inc = 0;
@@ -65,12 +78,17 @@ void setup() {
   Wire1.setClock(400000);
 
   //Start LCD display
-  analogWriteResolution(16); //Set DAC and PWM resolution
+  analogWriteResolution(analog_resolution); //Set DAC and PWM resolution
+  analogWriteFrequency(LED_PWM_pin, analog_freq); //Set LED PWM freq - other pins on same timer will also change - https://www.pjrc.com/teensy/td_pulse.html
   if(lcd.initializeLCD()){ //Start LCD display and confirm if present
-     strcpy(boot_array[boot_index++], "Display initialized ");
+    strcpy(boot_array[boot_index++], "Display initialized ");
+    display_present = true;
+    display_on = true;
   }
   else{
     strcpy(boot_array[boot_index++], "Display not found   ");
+    display_present = false;
+    display_on = false;
   }
 
   //Synchronize Teensy clock to computer clock
@@ -83,6 +101,41 @@ void setup() {
   t = now();
   timeString(t, boot_array[boot_index++]); //Write current time to boot screen
 
+  //Initialize sensors
+  if(temp_sensor.begin()){
+    strcpy(boot_array[boot_index++], "Temp sensor...OK    ");
+    temp_present = true;
+    temp_on = true;
+  }
+  else{
+    strcpy(boot_array[boot_index++], "Temp sensor...FAIL  ");
+    digitalWriteFast(temp_power_pin, LOW); //Cut power to sensor
+    temp_present = false;
+    temp_on = false;
+  }
+  if(color_sensor.begin()){
+    strcpy(boot_array[boot_index++], "Color sensor...OK  ");
+    color_present = true;
+    color_on = true;
+  }
+  else{
+    strcpy(boot_array[boot_index++], "Color sensor...FAIL ");
+    digitalWriteFast(color_power_pin, LOW); //Cut power to sensor
+    color_present = false;
+    color_on = false;
+  }
+  if(light_sensor.begin()){
+    strcpy(boot_array[boot_index++], "Light sensor...OK   ");
+    light_present = true;
+    light_on = true;    
+  }
+  else{
+    strcpy(boot_array[boot_index++], "Light sensor...FAIL ");
+    digitalWriteFast(light_power_pin, LOW); //Cut power to sensor
+    light_present = false;
+    light_on = false;  
+  }
+  
   while(!Serial);
   for(int a = 0; a<boot_index; a++){
     for(int b=0; b<20; b++){
