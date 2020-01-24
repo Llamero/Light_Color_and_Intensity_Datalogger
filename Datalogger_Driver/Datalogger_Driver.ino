@@ -8,22 +8,22 @@
 #include <Snooze.h> //Put Teensy into low power state between log points
 
 //Setup LCD pin numbers
-const int DB_pin_array[] = {32, 31, 8, 6, 5, 4, 3, 1}; //List of 4 (DB4-DB7) or 8 (DB0-DB7) pins to send data to LCD
-//const int DB_pin_array[] = {5, 4, 3, 1}; //Uncomment for 4 pin operation
-const int RS_pin = 30;
-const int RW_pin = 34;
-const int E_pin = 35;
-const int LCD_toggle_pin = 24; //Set to high to power on LCD
-const int LED_PWM_pin = 29; //Drive LED backlight intensity
-const int contrast_pin = A21; //DAC pin for addjusting diplay contrast
-const int n_DB_pin = sizeof(DB_pin_array)/sizeof(DB_pin_array[0]);
+int DB_pin_array[] = {32, 31, 8, 6, 5, 4, 3, 1}; //List of 4 (DB4-DB7) or 8 (DB0-DB7) pins to send data to LCD
+//int DB_pin_array[] = {5, 4, 3, 1}; //Uncomment for 4 pin operation
+int RS_pin = 30;
+int RW_pin = 34;
+int E_pin = 35;
+int LCD_toggle_pin = 24; //Set to high to power on LCD
+int LED_PWM_pin = 29; //Drive LED backlight intensity
+int contrast_pin = A21; //DAC pin for addjusting diplay contrast
+int n_DB_pin = sizeof(DB_pin_array)/sizeof(DB_pin_array[0]);
 
 //Setup sensor pin numbers
-const int temp_power_pin = 20; //Set Vcc pins
-const int color_power_pin = 23;
-const int light_power_pin = 17;
-const int color_interrupt_pin = 16; //Set interrupt pins
-const int light_interrupt_pin = 33;
+int temp_power_pin = 20; //Set Vcc pins
+int color_power_pin = 23;
+int light_power_pin = 17;
+int color_interrupt_pin = 16; //Set interrupt pins
+int light_interrupt_pin = 33;
 TwoWire* temp_port = &Wire; //Set I2C (wire) ports
 TwoWire* color_port = &Wire;
 TwoWire* light_port = &Wire1;
