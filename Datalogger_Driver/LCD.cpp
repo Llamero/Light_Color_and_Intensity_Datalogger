@@ -42,10 +42,7 @@ boolean LCD::initializeLCD(){
     commandLCD(0x02); //Home the cursor
     return true;
   }
-  digitalWriteFast(_LCD_toggle_pin, LOW); //Turn off LCD power if LCD fails to respond
-  digitalWriteFast(_LED_PWM_pin, LOW); //Turn off backlight if LCD fails to respond
-  analogWrite(_contrast_pin, 0); //Turn off LCD contrast if LCD fails to respond
-  DAC0_C0 = ~DAC_C0_DACEN; //Disable DAC pin DAC0 to save power on hibernate - https://github.com/duff2013/Snooze/issues/12
+  disableDisplay(); //Turn off display to lowest power state if not responding
   return false;
 }
 
@@ -83,10 +80,22 @@ void LCD::backlight(float intensity){
   else if(intensity < 0){
     intensity = 0;
   }
-  int bit_intensity = round(constrast * _max_analog);
-  analogWrite(_contrast_pin, bit_contrast);
+  if(intensity > 0){
+    int bit_intensity = round(intensity * _max_analog);
+    analogWrite(_LED_PWM_pin, bit_contrast);
+  }
+  else{ //Fully shutdown 
+    digitalWrite(_LED_PWM_pin, LOW);
+  }
 }
 
+//Fully shutdown display into lowest power state
+void LCD::disableDisplay(){
+  digitalWriteFast(_LCD_toggle_pin, LOW); //Turn off LCD power
+  digitalWriteFast(_LED_PWM_pin, LOW); //Turn off backlight
+  analogWrite(_contrast_pin, 0); //Turn off LCD contrast
+  DAC0_C0 = ~DAC_C0_DACEN; //Disable DAC pin DAC0 to save power on hibernate - https://github.com/duff2013/Snooze/issues/12
+}
 //PRIVATE------------------------------------------------------------------------------------------
 //Toggle E pin to latch DB 
 void LCD::latch(){
