@@ -14,7 +14,7 @@ LCD::LCD(int *DB_pin_array, int DB_length, int RS_pin, int RW_pin, int E_pin, in
   _LCD_toggle_pin = LCD_toggle_pin;
   _LED_PWM_pin = LED_PWM_pin;
   _contrast_pin = contrast_pin;
-  _max_analog = 1<<resolution; //Calcualte maximum value for analog write
+  _max_analog = (1<<resolution)-1; //Calcualte maximum value for analog write
 }
 
 //PUBLIC---------------------------------------------------------------------------------------------------------------------------------------------
