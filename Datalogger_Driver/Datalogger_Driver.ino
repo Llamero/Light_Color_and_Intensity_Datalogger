@@ -88,11 +88,18 @@ void setup() {
     strcpy(boot_array[boot_index++], "Display initialized ");
     display_present = true;
     display_on = true;
+    if(default_backlight > 0){
+      backlight_on = true;
+    }
+    else{
+      backlight_on = false;
+    }
   }
   else{
     strcpy(boot_array[boot_index++], "Display not found   ");
     display_present = false;
     display_on = false;
+    backlight_on = false;
   }
 
   //Synchronize Teensy clock to computer clock
