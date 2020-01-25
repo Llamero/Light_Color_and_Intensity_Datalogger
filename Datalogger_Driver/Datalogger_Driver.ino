@@ -19,7 +19,8 @@ int contrast_pin = A21; //DAC pin for addjusting diplay contrast
 int n_DB_pin = sizeof(DB_pin_array)/sizeof(DB_pin_array[0]);
 int analog_resolution = 16; //Number of bits in PWM and DAC analog  - PWM cap is 16, DAC cap is 12 - auto capped in code - https://www.pjrc.com/teensy/td_pulse.html
 int analog_freq = round(24000000/(1<<analog_resolution); //Calculate freq based on fastest for minimum clock speed - 24 MHz
-float default_backlight = 1.0; //Set default backlight intensity to full brightness
+float default_backlight = 1.0; //Set default backlight intensity to full brightness (range is 0-1)
+float default_contrast = 0.5; //Set default LCD contrast to half range (range is 0-1)
                         
 //Setup sensor pin numbers
 int temp_power_pin = 20; //Set Vcc pins
@@ -82,6 +83,7 @@ void setup() {
   analogWriteResolution(analog_resolution); //Set DAC and PWM resolution - NOTE: Do not change once set!
   analogWriteFrequency(LED_PWM_pin, analog_freq); //Set LED PWM freq - other pins on same timer will also change - https://www.pjrc.com/teensy/td_pulse.html
   lcd.setLCDbacklight(default_backlight); //Turn on LED backlight to default intensity
+  lcd.setLCDcontrast(default_contrast); //Initialize screen contrast to default value
   if(lcd.initializeLCD()){ //Start LCD display and confirm if present
     strcpy(boot_array[boot_index++], "Display initialized ");
     display_present = true;
