@@ -63,13 +63,27 @@ void LCD::outputPins(){
 
 //Adjust LCD contrast
 void LCD::setLCDcontrast(float contrast){
-  bit_contrast = round(constrast * _max_analog); //Values will automatically get mapped to max of 12-bit - https://www.pjrc.com/teensy/td_pulse.html
+  //Force 0-1 range
+  if(contrast > 1.0){
+    contrast = 1.0;}
+  }
+  else if(contrast < 0){
+    contrast = 0;
+  }
+  int bit_contrast = round(constrast * _max_analog); //Values will automatically get mapped to max of 12-bit - https://www.pjrc.com/teensy/td_pulse.html
   analogWrite(_contrast_pin, bit_contrast);
 }
 
 //Adjust backlightintensity
 void LCD::backlight(float intensity){
-  bit_contrast = round(constrast * _max_analog);
+  //Force 0-1 range
+  if(intensity > 1.0){
+    intensity = 1.0;}
+  }
+  else if(intensity < 0){
+    intensity = 0;
+  }
+  int bit_intensity = round(constrast * _max_analog);
   analogWrite(_contrast_pin, bit_contrast);
 }
 
