@@ -44,8 +44,15 @@ boolean LCD::initializeLCD(){
     commandLCD(0x0F); //Display ON; Blinking cursor
     commandLCD(0x06); //Entry Mode set
   }
- 
-  return monitorPresent(); //Check that monitor is attached and responding
+  
+  //Check that monitor is attached and responding
+  if(monitorPresent()){
+    return true;
+  }
+  else{
+    disableDisplay();
+    return false;
+  }
 }
 
 //Set pins to output
@@ -153,8 +160,9 @@ void LCD::commandLCD(char i){
   digitalWriteFast(_RW_pin, LOW); //Write
   sendDBchar(i);
   byte r = 255;
+  byte count = 255;
   if(i != 0x30 && i != 0x20){ //If command is not initializing command
-    while(r >= 128 && _DB_length>4){ //Wait until busy flag is cleared
+    while(r >= 128 && _DB_length>4 && count--){ //Wait until busy flag is cleared
       r = checkBusy();
     }
   }
@@ -166,7 +174,8 @@ void LCD::writeLCD(char i){
   digitalWriteFast(_RW_pin, LOW); //Write
   sendDBchar(i);
   byte r = 255;
-  while(r >= 128 && _DB_length>4){ //Wait until busy flag is cleared
+  byte count = 255;
+  while(r >= 128 && _DB_length>4 && count--){ //Wait until busy flag is cleared
     r = checkBusy();
   }
 }

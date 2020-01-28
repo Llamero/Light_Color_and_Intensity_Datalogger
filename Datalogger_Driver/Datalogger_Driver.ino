@@ -8,7 +8,7 @@
 #include <Snooze.h> //Put Teensy into low power state between log points
 
 //Setup LCD pin numbers and initial parameters
-int DB_pin_array[] = {32, 31, 8, 6, 5, 4, 3, 1}; //List of DB0-DB7 pins to send data to LCD
+int DB_pin_array[] = {32, 31, 8, 6, 5, 4, 3, 1}; //List of DB0-DB7 pins to send data to LCD - 4-pin is not fully supported
 int RS_pin = 30;
 int RW_pin = 34;
 int E_pin = 35;
@@ -112,7 +112,7 @@ void setup() {
   timeString(t, boot_array[boot_index++]); //Write current time to boot screen
 
   //Initialize sensors
-  if(temp_sensor.begin(temp_port)){
+  if(temp_sensor.begin(0x77, temp_port)){
     strcpy(boot_array[boot_index++], "Temp sensor...OK    ");
     temp_present = true;
     temp_on = true;
@@ -123,7 +123,7 @@ void setup() {
     temp_present = false;
     temp_on = false;
   }
-  if(color_sensor.begin(color_port)){
+  if(color_sensor.begin(0x29, color_port)){
     strcpy(boot_array[boot_index++], "Color sensor...OK  ");
     color_present = true;
     color_on = true;
@@ -203,7 +203,7 @@ void timeString(time_t unix_t, char (*t)){ //Syndax for array in 2D array - http
   a = addLeadingZero(t, minute(unix_t), a);
   t[a++] = ':';
   a = addLeadingZero(t, second(unix_t), a);
-  t[a] = 128;  //Issue with ' ' character rendering at end of line so other blank character used instead
+  t[a] = ' ';  //Issue with ' ' character rendering at end of line so other blank character used instead
 }
 
 int addLeadingZero(char *string, int num, int i){
