@@ -105,7 +105,7 @@ void LCD::disableDisplay(){
   digitalWriteFast(_LCD_toggle_pin, LOW); //Turn off LCD power
   digitalWriteFast(_LED_PWM_pin, LOW); //Turn off backlight
   analogWrite(_contrast_pin, 0); //Turn off LCD contrast
-  DAC0_C0 = (unsigned char) ~DAC_C0_DACEN; //Disable DAC pin DAC0 to save power on hibernate - https://github.com/duff2013/Snooze/issues/12
+  DAC0_C0 = (unsigned char) ~DAC_C0_DACEN; //Disable DAC pin DAC0 to save power on hibernate - https://github.com/duff2013/Snooze/issues/12 - unsigned char to fix warning - https://www.avrfreaks.net/forum/warning-large-integer-implicitly-truncated-unsigned-type
 }
 
 void LCD::displayCharArray(char t[][20], int line1, int line2, int line3, int line4){
