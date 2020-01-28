@@ -108,16 +108,17 @@ void LCD::disableDisplay(){
   DAC0_C0 = ~DAC_C0_DACEN; //Disable DAC pin DAC0 to save power on hibernate - https://github.com/duff2013/Snooze/issues/12
 }
 
-void LCD::displayCharArray(char t[][20], int i){
+void LCD::displayCharArray(char t[][20], int line1, int line2, int line3, int line4){
   commandLCD(0x01); //Clear display
   int row;
   for(int a=0; a<80; a++){
-    if(a<20) row = 0+i;
-    else if(a<40) row = 2+i;
-    else if(a<60) row = 1+i;
-    else row = 3+i;
+    if(a<20) row = line1;
+    else if(a<40) row = line3;
+    else if(a<60) row = line2;
+    else row = line4;
     int col = a%20;
-    writeLCD(t[row][col]);
+    if(row >= 0) writeLCD(t[row][col]);
+    else writeLCD(' ');
   }
 }
 //PRIVATE------------------------------------------------------------------------------------------

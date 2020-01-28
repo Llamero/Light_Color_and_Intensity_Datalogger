@@ -15,7 +15,7 @@ class LCD
     void setLCDcontrast(float contrast);
     void setLCDbacklight(float intensity);
     void disableDisplay();
-    void displayCharArray(char t[][20], int i);
+    void displayCharArray(char t[][20], int line1 = -1, int line2 = -1, int line3 = -1, int line4 = -1);
 
   private:
     int *_DB_pin_array; //Array or 4 or 8 DB pins for driver

@@ -154,7 +154,7 @@ void setup() {
     Serial.println();
   }
   for(int a = 0; a<boot_index-3; a++){
-    lcd.displayCharArray(boot_array, a);
+    lcd.displayCharArray(boot_array, 0, a+1, a+2, a+3);
     delay(1000);
   }
 
