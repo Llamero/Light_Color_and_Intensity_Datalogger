@@ -26,24 +26,26 @@ boolean LCD::initializeLCD(){
   delay(100); //Wait >40 msec after power is applied
   commandLCD(0x30); //command 0x30 = Wake up
   delay(30); //must wait 5ms, busy flag not available
-  commandLCD(0x30); //command 0x30 = Wake up #2
+  latch(); //command 0x30 = Wake up #2
   delay(10); //must wait 160us, busy flag not available
-  commandLCD(0x30); //command 0x30 = Wake up #3
+  latch(); //command 0x30 = Wake up #3
   delay(10); //must wait 160us, busy flag not available
-  commandLCD(0x38); //Function set: 8-bit/2-line
-  commandLCD(0x10); //Set cursor
-  commandLCD(0x0c); //Display ON; Cursor ON
-  commandLCD(0x06); //Entry mode set
-
-  //Check if LCD is functioning
-  commandLCD(0xC0); //Set cursor to bottom right corner - 0xC0 will return same address in 4 and 8-bit.
-  byte response = checkBusy();
-  if(response == 0xC0){ //Confirm that expected reponse was received
-    commandLCD(0x02); //Home the cursor
-    return true;
+  if(_DB_length == 8){
+    commandLCD(0x38); //Function set: 8-bit/2-line
+    commandLCD(0x10); //Set cursor
+    commandLCD(0x0c); //Display ON; Cursor ON
+    commandLCD(0x06); //Entry mode set
+    commandLCD(0x01); //Clear display
   }
-  disableDisplay(); //Turn off display to lowest power state if not responding
-  return false;
+  else if(_DB_length == 4){
+    commandLCD(0x20); //Function set: 4-bit interface
+    commandLCD(0x28); //Function set: 4-bit/2-line
+    commandLCD(0x10); //Set cursor
+    commandLCD(0x0F); //Display ON; Blinking cursor
+    commandLCD(0x06); //Entry Mode set
+  }
+ 
+  return monitorPresent(); //Check that monitor is attached and responding
 }
 
 //Set pins to output
@@ -62,27 +64,29 @@ void LCD::outputPins(){
 void LCD::setLCDcontrast(float contrast){
   //Force 0-1 range
   if(contrast > 1.0){
-    contrast = 1.0;}
+    contrast = 1.0;
   }
   else if(contrast < 0){
     contrast = 0;
   }
-  int bit_contrast = round(constrast * _max_analog); //Values will automatically get mapped to max of 12-bit - https://www.pjrc.com/teensy/td_pulse.html
+  int bit_contrast = round((1-contrast) * _max_analog)>>2; //Values will automatically get mapped to max of 12-bit - https://www.pjrc.com/teensy/td_pulse.html; contrast is also inverted and maxes out at about 1.4 full range
+  
   analogWrite(_contrast_pin, bit_contrast);
+  Serial.println(bit_contrast);
 }
 
 //Adjust backlightintensity
-void LCD::backlight(float intensity){
+void LCD::setLCDbacklight(float intensity){
   //Force 0-1 range
   if(intensity > 1.0){
-    intensity = 1.0;}
+    intensity = 1.0;
   }
   else if(intensity < 0){
     intensity = 0;
   }
   if(intensity > 0){
     int bit_intensity = round(intensity * _max_analog);
-    analogWrite(_LED_PWM_pin, bit_contrast);
+    analogWrite(_LED_PWM_pin, bit_intensity);
   }
   else{ //Fully shutdown 
     digitalWrite(_LED_PWM_pin, LOW);
@@ -95,6 +99,19 @@ void LCD::disableDisplay(){
   digitalWriteFast(_LED_PWM_pin, LOW); //Turn off backlight
   analogWrite(_contrast_pin, 0); //Turn off LCD contrast
   DAC0_C0 = ~DAC_C0_DACEN; //Disable DAC pin DAC0 to save power on hibernate - https://github.com/duff2013/Snooze/issues/12
+}
+
+void LCD::displayCharArray(char t[][20], int i){
+  commandLCD(0x01); //Clear display
+  int row;
+  for(int a=0; a<80; a++){
+    if(a<20) row = 0+i;
+    else if(a<40) row = 2+i;
+    else if(a<60) row = 1+i;
+    else row = 3+i;
+    int col = a%20;
+    writeLCD(t[row][col]);
+  }
 }
 //PRIVATE------------------------------------------------------------------------------------------
 //Toggle E pin to latch DB 
@@ -113,11 +130,12 @@ void LCD::sendDBchar(char i){
       i = i<<1;
     }
     latch();
+    if(i == 0x30 || i == 0x20) return; //For these two commands - only send the four MSB
     for(int a=_DB_length-1; a>=0; a--){
       digitalWriteFast(_DB_pin_array[a], i & B10000000);
       i = i<<1;
     }
-    latch();      
+    latch();
   }
   //If in 8 pin mode, post all 8 bits
   else if (_DB_length == 8){
@@ -134,6 +152,12 @@ void LCD::commandLCD(char i){
   digitalWriteFast(_RS_pin, LOW); //Send instruction
   digitalWriteFast(_RW_pin, LOW); //Write
   sendDBchar(i);
+  byte r = 255;
+  if(i != 0x30 && i != 0x20){ //If command is not initializing command
+    while(r >= 128 && _DB_length>4){ //Wait until busy flag is cleared
+      r = checkBusy();
+    }
+  }
 }
 
 //Send a character
@@ -141,18 +165,25 @@ void LCD::writeLCD(char i){
   digitalWriteFast(_RS_pin, HIGH); //Send data
   digitalWriteFast(_RW_pin, LOW); //Write
   sendDBchar(i);
+  byte r = 255;
+  while(r >= 128 && _DB_length>4){ //Wait until busy flag is cleared
+    r = checkBusy();
+  }
 }
 
 //Check if LCD is busy
 byte LCD::checkBusy(){
-  //Set DB pins as input
+    //Set DB pins as input
   for(int a=_DB_length-1; a>=0; a--){
       pinMode(_DB_pin_array[a], INPUT_PULLUP);
   }
+  delayMicroseconds(100); //must wait at least 80us before checking BF - https://www.newhavendisplay.com/app_notes/ST7066U.pdf
+  
   //Send command to get busy flag
   digitalWriteFast(_RS_pin, LOW); //Send instruction
   digitalWriteFast(_RW_pin, HIGH); //Read
-  
+  digitalWriteFast(_E_pin, HIGH); //Enable BF
+  delayMicroseconds(2000);
   //Get flag (DB7) and address counter (DB0-DB6)
   byte response = 0;
   for(int a=_DB_length-1; a>=0; a--){
@@ -161,8 +192,26 @@ byte LCD::checkBusy(){
       else bitSet(response, a);  
     }
   }
-
+  digitalWriteFast(_E_pin, LOW); //Reset BF
+  //If in 4-bit mode - get 4 LSB next
+  if (_DB_length == 4){
+    digitalWriteFast(_E_pin, HIGH); //Enable BF
+    delayMicroseconds(1000);
+    digitalWriteFast(_E_pin, LOW); //Reset BF
+  }
   outputPins(); //Set the pins back to output
-  
   return response;
+}
+
+//Check that LCD is connected and functioning correctly
+boolean LCD::monitorPresent(){
+  int a;
+  //Check all DDRAM addresses and confrim checkBusy returns the same address
+  for(a = 0; a<=127; a++){
+    commandLCD(128+a);
+    byte r = checkBusy();
+    if(r != a && a != 0x28 && a != 0x68) return false;
+    else if((a == 0x28 && r != 0x40) || (a == 0x68 && r != 0x0)) return false; //These two slots roll over to the next line
+  }
+  return true;
 }

@@ -8,8 +8,7 @@
 #include <Snooze.h> //Put Teensy into low power state between log points
 
 //Setup LCD pin numbers and initial parameters
-int DB_pin_array[] = {32, 31, 8, 6, 5, 4, 3, 1}; //List of 4 (DB4-DB7) or 8 (DB0-DB7) pins to send data to LCD
-//int DB_pin_array[] = {5, 4, 3, 1}; //Uncomment for 4 pin operation
+int DB_pin_array[] = {32, 31, 8, 6, 5, 4, 3, 1}; //List of DB0-DB7 pins to send data to LCD
 int RS_pin = 30;
 int RW_pin = 34;
 int E_pin = 35;
@@ -18,7 +17,7 @@ int LED_PWM_pin = 29; //Drive LED backlight intensity
 int contrast_pin = A21; //DAC pin for addjusting diplay contrast
 int n_DB_pin = sizeof(DB_pin_array)/sizeof(DB_pin_array[0]);
 int analog_resolution = 16; //Number of bits in PWM and DAC analog  - PWM cap is 16, DAC cap is 12 - auto capped in code - https://www.pjrc.com/teensy/td_pulse.html
-int analog_freq = round(24000000/(1<<analog_resolution); //Calculate freq based on fastest for minimum clock speed - 24 MHz
+int analog_freq = 24000000/(1<<analog_resolution); //Calculate freq based on fastest for minimum clock speed - 24 MHz
 float default_backlight = 1.0; //Set default backlight intensity to full brightness (range is 0-1)
 float default_contrast = 0.5; //Set default LCD contrast to half range (range is 0-1)
                         
@@ -57,7 +56,7 @@ float inc = 0;
 float contrast = 0;
 void setup() {
   int boot_index = 0;
-  strcpy(boot_array[boot_index++], "Boot status:       ");
+  strcpy(boot_array[boot_index++], "Boot status:        ");
 
   //Turn off Teensy LED
   pinMode(LED_BUILTIN, OUTPUT); 
@@ -113,7 +112,7 @@ void setup() {
   timeString(t, boot_array[boot_index++]); //Write current time to boot screen
 
   //Initialize sensors
-  if(temp_sensor.begin()){
+  if(temp_sensor.begin(temp_port)){
     strcpy(boot_array[boot_index++], "Temp sensor...OK    ");
     temp_present = true;
     temp_on = true;
@@ -124,7 +123,7 @@ void setup() {
     temp_present = false;
     temp_on = false;
   }
-  if(color_sensor.begin()){
+  if(color_sensor.begin(color_port)){
     strcpy(boot_array[boot_index++], "Color sensor...OK  ");
     color_present = true;
     color_on = true;
@@ -135,7 +134,7 @@ void setup() {
     color_present = false;
     color_on = false;
   }
-  if(light_sensor.begin()){
+  if(light_sensor.begin(light_port)){
     strcpy(boot_array[boot_index++], "Light sensor...OK   ");
     light_present = true;
     light_on = true;    
@@ -154,15 +153,28 @@ void setup() {
     }
     Serial.println();
   }
+  for(int a = 0; a<boot_index-3; a++){
+    lcd.displayCharArray(boot_array, a);
+    delay(1000);
+  }
 
 }
 
 void loop() {
-  contrast = sin(inc)*0.5 + 0.5;
-  lcd.setLCDcontrast(contrast);
-  inc = inc + 0.02;
-  if(inc>2*PI) inc = 0;
-  light_sensor.begin(light_port); //Specify I2C port when initializaing library
+  //contrast = sin(inc)*0.5 + 0.5;
+  //lcd.setLCDcontrast(contrast);
+  //inc = inc + 0.02;
+  //if(inc>2*PI) inc = 0;
+  //light_sensor.begin(light_port); //Specify I2C port when initializaing library
+  if(Serial.available()){
+    delay(100);
+    float contrast = Serial.parseFloat();
+    lcd.setLCDcontrast(contrast);
+    while(Serial.available()){
+      Serial.read();
+    }    
+  }
+  delay(100);
   digitalWriteFast(LED_BUILTIN, HIGH);
   delayMicroseconds(100);
   digitalWriteFast(LED_BUILTIN, LOW);
@@ -191,6 +203,7 @@ void timeString(time_t unix_t, char (*t)){ //Syndax for array in 2D array - http
   a = addLeadingZero(t, minute(unix_t), a);
   t[a++] = ':';
   a = addLeadingZero(t, second(unix_t), a);
+  t[a] = 128;  //Issue with ' ' character rendering at end of line so other blank character used instead
 }
 
 int addLeadingZero(char *string, int num, int i){

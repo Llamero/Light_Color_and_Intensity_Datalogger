@@ -9,12 +9,13 @@
 class LCD
 {
   public:
-    LCD(int *DB_pin_array, int DB_length, int RS_pin, int RW_pin, int E_pin, int LCD_toggle_pin, int LED_PWM_pin, int contrast_pin);
+    LCD(int *DB_pin_array, int DB_length, int RS_pin, int RW_pin, int E_pin, int LCD_toggle_pin, int LED_PWM_pin, int contrast_pin, int resolution);
     boolean initializeLCD();
     void outputPins();
     void setLCDcontrast(float contrast);
     void setLCDbacklight(float intensity);
     void disableDisplay();
+    void displayCharArray(char t[][20], int i);
 
   private:
     int *_DB_pin_array; //Array or 4 or 8 DB pins for driver
@@ -25,13 +26,14 @@ class LCD
     int _LCD_toggle_pin; //Set to high to power on LCD
     int _LED_PWM_pin; //Drive LED backlight intensity
     int _contrast_pin; //DAC pin for addjusting diplay contrast
-    int _resolution; //Analog write resolution
+    int _max_analog; //Analog write resolution
 
     void latch(); //Toggle E pin to latch DB
     void sendDBchar(char i); //Send a byte of data to the LCD
     void commandLCD(char i); //Send a command
     void writeLCD(char i); //Send a character
     byte checkBusy(); //Returns the busy flag and address counter of LCD
+    boolean monitorPresent(); //Check whether monitor is attached to PCB
 };
 
 #endif
