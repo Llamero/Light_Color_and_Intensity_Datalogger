@@ -32,25 +32,25 @@ boolean LCD::initializeLCD(){
   delay(10); //must wait 160us, busy flag not available
   if(_DB_length == 8){
     commandLCD(0x38); //Function set: 8-bit/2-line
-    commandLCD(0x10); //Set cursor
-    commandLCD(0x0c); //Display ON; Cursor ON
-    commandLCD(0x06); //Entry mode set
-    commandLCD(0x01); //Clear display
+    delay(1);
   }
   else if(_DB_length == 4){
-    commandLCD(0x20); //Function set: 4-bit interface
+    commandLCD(0x28); //Function set: 4-bit interface
+    delay(10);
     commandLCD(0x28); //Function set: 4-bit/2-line
-    commandLCD(0x10); //Set cursor
-    commandLCD(0x0F); //Display ON; Blinking cursor
-    commandLCD(0x06); //Entry Mode set
+    delay(10);
   }
+  commandLCD(0x10); //Set cursor
+  commandLCD(0x0c); //Display ON; Cursor ON
+  commandLCD(0x06); //Entry mode set
+  commandLCD(0x01); //Clear display
   
   //Check that monitor is attached and responding
   if(monitorPresent()){
     return true;
   }
   else{
-    disableDisplay();
+    //disableDisplay();
     return false;
   }
 }
@@ -133,17 +133,40 @@ void LCD::latch(){
 void LCD::sendDBchar(char i){
   //If in 4 pin mode, post 4 MSB then 4 LSB
   if (_DB_length == 4){
-    for(int a=_DB_length-1; a>=0; a--){
-      digitalWriteFast(_DB_pin_array[a], i & B10000000);
-      i = i<<1;
+    if(i == '0' || i == '1'){
+      digitalWriteFast(_E_pin, HIGH);
+      for(int a=_DB_length-1; a>=0; a--){
+        digitalWriteFast(_DB_pin_array[a], i & B10000000);
+        i = i<<1;
+      } 
+      digitalWriteFast(_E_pin, LOW);
+      delayMicroseconds(2);
+      if(i == 0x30) return; //For these two commands - only send the four MSB
+      digitalWriteFast(_E_pin, HIGH);
+      for(int a=_DB_length-1; a>=0; a--){
+        digitalWriteFast(_DB_pin_array[a], i & B10000000);
+        i = i<<1;
+      }
+      digitalWriteFast(_E_pin, LOW);
+      delay(5);
     }
-    latch();
-    if(i == 0x30 || i == 0x20) return; //For these two commands - only send the four MSB
-    for(int a=_DB_length-1; a>=0; a--){
-      digitalWriteFast(_DB_pin_array[a], i & B10000000);
-      i = i<<1;
+    else{
+      digitalWriteFast(_E_pin, HIGH);
+      digitalWriteFast(_DB_pin_array[0], i & B00010000);
+      digitalWriteFast(_DB_pin_array[1], i & B00100000);
+      digitalWriteFast(_DB_pin_array[2], i & B01000000);
+      digitalWriteFast(_DB_pin_array[3], i & B10000000);
+      digitalWriteFast(_E_pin, LOW);
+      delayMicroseconds(2);
+      if(i == 0x30) return; //For these two commands - only send the four MSB
+      digitalWriteFast(_E_pin, HIGH);
+      digitalWriteFast(_DB_pin_array[0], i & B00000001);
+      digitalWriteFast(_DB_pin_array[1], i & B00000010);
+      digitalWriteFast(_DB_pin_array[2], i & B00000100);
+      digitalWriteFast(_DB_pin_array[3], i & B00001000);
+      digitalWriteFast(_E_pin, LOW);
+      delay(5);
     }
-    latch();
   }
   //If in 8 pin mode, post all 8 bits
   else if (_DB_length == 8){
@@ -163,7 +186,7 @@ void LCD::commandLCD(char i){
   byte r = 255;
   byte count = 255;
   if(i != 0x30 && i != 0x20){ //If command is not initializing command
-    while(r >= 128 && _DB_length>4 && count--){ //Wait until busy flag is cleared
+    while(r >= 128 && count--){ //Wait until busy flag is cleared
       r = checkBusy();
     }
   }
@@ -176,14 +199,14 @@ void LCD::writeLCD(char i){
   sendDBchar(i);
   byte r = 255;
   byte count = 255;
-  while(r >= 128 && _DB_length>4 && count--){ //Wait until busy flag is cleared
+  while(r >= 128 && count--){ //Wait until busy flag is cleared
     r = checkBusy();
   }
 }
 
 //Check if LCD is busy
 byte LCD::checkBusy(){
-    //Set DB pins as input
+  //Set DB pins as input
   for(int a=_DB_length-1; a>=0; a--){
       pinMode(_DB_pin_array[a], INPUT_PULLUP);
   }
@@ -193,7 +216,7 @@ byte LCD::checkBusy(){
   digitalWriteFast(_RS_pin, LOW); //Send instruction
   digitalWriteFast(_RW_pin, HIGH); //Read
   digitalWriteFast(_E_pin, HIGH); //Enable BF
-  delayMicroseconds(2000);
+  delayMicroseconds(100);
   //Get flag (DB7) and address counter (DB0-DB6)
   byte response = 0;
   for(int a=_DB_length-1; a>=0; a--){
@@ -203,10 +226,11 @@ byte LCD::checkBusy(){
     }
   }
   digitalWriteFast(_E_pin, LOW); //Reset BF
+  delayMicroseconds(2);
   //If in 4-bit mode - get 4 LSB next
   if (_DB_length == 4){
     digitalWriteFast(_E_pin, HIGH); //Enable BF
-    delayMicroseconds(1000);
+    delayMicroseconds(100);
     digitalWriteFast(_E_pin, LOW); //Reset BF
   }
   outputPins(); //Set the pins back to output
@@ -220,8 +244,17 @@ boolean LCD::monitorPresent(){
   for(a = 0; a<=127; a++){
     commandLCD(128+a);
     byte r = checkBusy();
-    if(r != a && a != 0x28 && a != 0x68) return false;
-    else if((a == 0x28 && r != 0x40) || (a == 0x68 && r != 0x0)) return false; //These two slots roll over to the next line
+    if(_DB_length == 8){
+      if(r != a && a != 0x28 && a != 0x68) return false;
+      else if((a == 0x28 && r != 0x40) || (a == 0x68 && r != 0x0)) return false; //These two slots roll over to the next line
+    }
+    else if(_DB_length == 4){
+      if(r != (a & 0xF0) && a != 0x28 && a != 0x68) return false;
+      else if((a == 0x28 && r != (0x40 & 0xF0)) || (a == 0x68 && r != (0x0 & 0xF0))) return false; //These two slots roll over to the next line
+    }
+    Serial.print(a);
+    Serial.print(" ");
+    Serial.println(r);
   }
   return true;
 }

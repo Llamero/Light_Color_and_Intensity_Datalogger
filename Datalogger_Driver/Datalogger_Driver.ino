@@ -8,7 +8,8 @@
 #include <Snooze.h> //Put Teensy into low power state between log points
 
 //Setup LCD pin numbers and initial parameters
-int DB_pin_array[] = {32, 31, 8, 6, 5, 4, 3, 1}; //List of DB0-DB7 pins to send data to LCD - 4-pin is not fully supported
+//int DB_pin_array[] = {32, 31, 8, 6, 5, 4, 3, 1}; //List of DB0-DB7 pins to send data to LCD - 4-pin is not fully supported
+int DB_pin_array[] = {5, 4, 3, 1}; //List of DB0-DB7 pins to send data to LCD - 4-pin is not fully supported
 int RS_pin = 30;
 int RW_pin = 34;
 int E_pin = 35;
@@ -17,7 +18,7 @@ int LED_PWM_pin = 29; //Drive LED backlight intensity
 int contrast_pin = A21; //DAC pin for addjusting diplay contrast
 int n_DB_pin = sizeof(DB_pin_array)/sizeof(DB_pin_array[0]);
 int analog_resolution = 16; //Number of bits in PWM and DAC analog  - PWM cap is 16, DAC cap is 12 - auto capped in code - https://www.pjrc.com/teensy/td_pulse.html
-int max_analog = (1<<analog_resolution)-1; //Highest analog value
+int analog_max = (1<<analog_resolution)-1; //Highest analog value
 int analog_freq = 24000000/(1<<analog_resolution); //Calculate freq based on fastest for minimum clock speed - 24 MHz
 float default_backlight = 1.0; //Set default backlight intensity to full brightness (range is 0-1)
 float default_contrast = 0.5; //Set default LCD contrast to half range (range is 0-1)
@@ -216,7 +217,7 @@ float checkCoinCell(){
     pinMode(coin_analog_pin, INPUT);
     coin_voltage = analogRead(coin_analog_pin);
     digitalWriteFast(coin_test_pin, LOW); //disconnect coin cell from ADC
-    coin_voltage *= 3.3/max_analog;
+    coin_voltage *= 3.3/analog_max;
   }
   return coin_voltage;
 }
