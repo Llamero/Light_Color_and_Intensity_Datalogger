@@ -76,7 +76,7 @@ void LCD::setLCDcontrast(float contrast){
   else if(contrast < 0){
     contrast = 0;
   }
-  int bit_contrast = round((1-contrast) * _max_analog)>>2; //Values will automatically get mapped to max of 12-bit - https://www.pjrc.com/teensy/td_pulse.html; contrast is also inverted and maxes out at about 1.4 full range
+  int bit_contrast = round((1-contrast) * _max_analog)>>2; //Values will automatically get mapped to max of 12-bit - https://www.pjrc.com/teensy/td_pulse.html; contrast is also inverted and maxes out at about 1/4 full range
   
   analogWrite(_contrast_pin, bit_contrast);
   Serial.println(bit_contrast);

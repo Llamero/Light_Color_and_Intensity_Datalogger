@@ -17,6 +17,7 @@ int LED_PWM_pin = 29; //Drive LED backlight intensity
 int contrast_pin = A21; //DAC pin for addjusting diplay contrast
 int n_DB_pin = sizeof(DB_pin_array)/sizeof(DB_pin_array[0]);
 int analog_resolution = 16; //Number of bits in PWM and DAC analog  - PWM cap is 16, DAC cap is 12 - auto capped in code - https://www.pjrc.com/teensy/td_pulse.html
+int max_analog = (1<<analog_resolution)-1; //Highest analog value
 int analog_freq = 24000000/(1<<analog_resolution); //Calculate freq based on fastest for minimum clock speed - 24 MHz
 float default_backlight = 1.0; //Set default backlight intensity to full brightness (range is 0-1)
 float default_contrast = 0.5; //Set default LCD contrast to half range (range is 0-1)
@@ -31,6 +32,12 @@ TwoWire* temp_port = &Wire; //Set I2C (wire) ports
 TwoWire* color_port = &Wire;
 TwoWire* light_port = &Wire1;
 
+//Setup battery test pin numbers
+int coin_test_pin = 36;
+int coin_analog_pin = A1;
+int Vin_test_pin = 39;
+int Vin_analog_pin = A0; 
+
 //Component status
 boolean display_present = false;
 boolean display_on = false;
@@ -41,6 +48,8 @@ boolean color_present = false;
 boolean color_on = false;
 boolean light_present = false;
 boolean light_on = false;
+boolean coin_present = false;
+
 
 //Arrays for storing display Strings
 char boot_array[12][20]; //Array for boot display
@@ -69,7 +78,15 @@ void setup() {
   digitalWriteFast(temp_power_pin, HIGH);
   digitalWriteFast(color_power_pin, HIGH);
   digitalWriteFast(light_power_pin, HIGH);
-    
+
+  //Set battery test pins
+  pinMode(coin_test_pin, OUTPUT);
+  pinMode(Vin_test_pin, OUTPUT);
+  digitalWriteFast(coin_test_pin, LOW); //Disconnect coin cell from ADC
+  digitalWriteFast(Vin_test_pin, LOW); //Disconnect battery from ADC
+  pinMode(coin_analog_pin, INPUT); //Set coin cell ADC to floating high impedance
+  pinMode(Vin_analog_pin, INPUT); //Set battery ADC to floating high impedance
+ 
   //Setup USB serial communication
   Serial.begin(9600); //Baud rate is ignored and negotiated with computer for max speed
   wakeUSB();
@@ -80,6 +97,7 @@ void setup() {
 
   //Start LCD display
   analogWriteResolution(analog_resolution); //Set DAC and PWM resolution - NOTE: Do not change once set!
+  analogReadResolution(analog_resolution); //Set ADC resolution - NOTE: Do not change once set!
   analogWriteFrequency(LED_PWM_pin, analog_freq); //Set LED PWM freq - other pins on same timer will also change - https://www.pjrc.com/teensy/td_pulse.html
   lcd.setLCDbacklight(default_backlight); //Turn on LED backlight to default intensity
   lcd.setLCDcontrast(default_contrast); //Initialize screen contrast to default value
@@ -113,12 +131,12 @@ void setup() {
 
   //Initialize sensors
   if(temp_sensor.begin(0x77, temp_port)){
-    strcpy(boot_array[boot_index++], "Temp sensor...OK    ");
+    strcpy(boot_array[boot_index++], "Temp sensor....OK   ");
     temp_present = true;
     temp_on = true;
   }
   else{
-    strcpy(boot_array[boot_index++], "Temp sensor...FAIL  ");
+    strcpy(boot_array[boot_index++], "Temp sensor....FAIL ");
     digitalWriteFast(temp_power_pin, LOW); //Cut power to sensor
     temp_present = false;
     temp_on = false;
@@ -145,6 +163,10 @@ void setup() {
     light_present = false;
     light_on = false;  
   }
+
+  //Test batteries
+  float volt = checkCoinCell();
+  
   
   while(!Serial);
   for(int a = 0; a<boot_index; a++){
@@ -185,6 +207,29 @@ time_t getTeensy3Time(){
   return Teensy3Clock.get();
 }
 
+//Check coin cell voltage - since the ADC for the coin cell down is floating, we have to do a PULLDOWN to a known state first to see if a battery is connected before trying to measure the voltage
+float checkCoinCell(){
+  float coin_voltage = 0;
+  pinMode(coin_analog_pin, INPUT_PULLDOWN);
+  digitalWriteFast(coin_test_pin, HIGH); //Connect coin cell to ADC
+  if(digitalRead(coin_analog_pin)){
+    pinMode(coin_analog_pin, INPUT);
+    coin_voltage = analogRead(coin_analog_pin);
+    digitalWriteFast(coin_test_pin, LOW); //disconnect coin cell from ADC
+    coin_voltage *= 3.3/max_analog;
+  }
+  return coin_voltage;
+}
+
+//Measure battery voltage, which is 2x ADC reading - due to the 1/2 voltage divider, ADC is in a known PULLDOWN state 
+float checkBattery(){
+  digitalWriteFast(Vin_test_pin, HIGH); //Connect Vin cell to ADC
+  float Vin_voltage = analogRead(Vin_analog_pin);
+  digitalWriteFast(Vin_test_pin, LOW); //disconnect Vin cell from ADC
+  Vin_voltage = Vin_voltage/(1<<analog_resolution)*6.6;
+  return Vin_voltage;
+}
+
 //Create a time string formated as "year month day hour:minute:second"
 void timeString(time_t unix_t, char (*t)){ //Syndax for array in 2D array - https://stackoverflow.com/questions/16486276/c-pointer-declaration-for-pointing-to-a-row-of-2-d-array
   char buf[4];
@@ -208,18 +253,11 @@ void timeString(time_t unix_t, char (*t)){ //Syndax for array in 2D array - http
 
 int addLeadingZero(char *string, int num, int i){
   char buf[2];
-  sprintf(buf, "%d", num);
-  if(num < 10){
-    string[i++] = '0';
-    string[i++] = buf[0];
-  }
-  else{
-    string[i++] = buf[0];
-    string[i++] = buf[1];
-  }
+  sprintf(buf, "%02d", num);
+  string[i++] = buf[0];
+  string[i++] = buf[1];
   return i;
 }
-
 
 void wakeUSB(){
     elapsedMillis time = 0;
