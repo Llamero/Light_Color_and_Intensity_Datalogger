@@ -9,7 +9,7 @@
 
 //Setup LCD pin numbers and initial parameters
 int DB_pin_array[] = {32, 31, 8, 6, 5, 4, 3, 1}; //List of DB0-DB7 pins to send data to LCD - 4-pin is not fully supported
-boolean four_pin_mode = false; //Whether to run the display in 4-pin mode to free up pins - may not be stable
+boolean four_pin_mode = false; //Whether to run the display in 4-pin mode - may not be stable
 int RS_pin = 30;
 int RW_pin = 34;
 int E_pin = 35;
@@ -173,10 +173,7 @@ void setup() {
   }
 
   //Test batteries
-  float volt = checkVbat();
-  sprintf(boot_array[boot_index++], "VBat: %4.2fV         ", volt);
-  volt = checkVin();
-  sprintf(boot_array[boot_index++], "Vin:  %4.2fV         ", volt);
+  float volt = checkCoinCell();
   
   
   while(!Serial);
@@ -219,7 +216,7 @@ time_t getTeensy3Time(){
 }
 
 //Check coin cell voltage - since the ADC for the coin cell down is floating, we have to do a PULLDOWN to a known state first to see if a battery is connected before trying to measure the voltage
-float checkVbat(){
+float checkCoinCell(){
   float coin_voltage = 0;
   pinMode(coin_analog_pin, INPUT_PULLDOWN);
   digitalWriteFast(coin_test_pin, HIGH); //Connect coin cell to ADC
@@ -233,16 +230,11 @@ float checkVbat(){
 }
 
 //Measure battery voltage, which is 2x ADC reading - due to the 1/2 voltage divider, ADC is in a known PULLDOWN state 
-float checkVin(){
-  float Vin_voltage = 0;
-  pinMode(Vin_analog_pin, INPUT_PULLDOWN);
+float checkBattery(){
   digitalWriteFast(Vin_test_pin, HIGH); //Connect Vin cell to ADC
-  if(digitalRead(Vin_analog_pin)){
-    pinMode(Vin_analog_pin, INPUT);
-    Vin_voltage = analogRead(Vin_analog_pin);
-    digitalWriteFast(Vin_test_pin, LOW); //disconnect Vin cell from ADC
-    Vin_voltage *= 6.6/analog_max;
-  }
+  float Vin_voltage = analogRead(Vin_analog_pin);
+  digitalWriteFast(Vin_test_pin, LOW); //disconnect Vin cell from ADC
+  Vin_voltage = Vin_voltage/(1<<analog_resolution)*6.6;
   return Vin_voltage;
 }
 
