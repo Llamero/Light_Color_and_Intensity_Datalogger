@@ -8,8 +8,8 @@
 #include <Snooze.h> //Put Teensy into low power state between log points
 
 //Setup LCD pin numbers and initial parameters
-//int DB_pin_array[] = {32, 31, 8, 6, 5, 4, 3, 1}; //List of DB0-DB7 pins to send data to LCD - 4-pin is not fully supported
-int DB_pin_array[] = {5, 4, 3, 1}; //List of DB0-DB7 pins to send data to LCD - 4-pin is not fully supported
+int DB_pin_array[] = {32, 31, 8, 6, 5, 4, 3, 1}; //List of DB0-DB7 pins to send data to LCD - 4-pin is not fully supported
+boolean four_pin_mode = false; //Whether to run the display in 4-pin mode - may not be stable
 int RS_pin = 30;
 int RW_pin = 34;
 int E_pin = 35;
@@ -100,6 +100,13 @@ void setup() {
   analogWriteResolution(analog_resolution); //Set DAC and PWM resolution - NOTE: Do not change once set!
   analogReadResolution(analog_resolution); //Set ADC resolution - NOTE: Do not change once set!
   analogWriteFrequency(LED_PWM_pin, analog_freq); //Set LED PWM freq - other pins on same timer will also change - https://www.pjrc.com/teensy/td_pulse.html
+  if(four_pin_mode){
+    for(int a=0; a<n_DB_pin; a++){
+      if(a<4) pinMode(DB_pin_array[a], INPUT); //Temporarily set the LSB pins to high impedance so the display can boot into 4-bit mode
+      else DB_pin_array[a-4] = DB_pin_array[a]; //Shift the MSB pins to the LSB slots
+    }
+    lcd = LCD(DB_pin_array, 4, RS_pin, RW_pin, E_pin, LCD_toggle_pin, LED_PWM_pin, contrast_pin, analog_resolution); //Overwrite the LCD instance
+  }
   lcd.setLCDbacklight(default_backlight); //Turn on LED backlight to default intensity
   lcd.setLCDcontrast(default_contrast); //Initialize screen contrast to default value
   if(lcd.initializeLCD()){ //Start LCD display and confirm if present
