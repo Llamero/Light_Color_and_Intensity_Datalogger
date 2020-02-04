@@ -79,7 +79,6 @@ void LCD::setLCDcontrast(float contrast){
   int bit_contrast = round((1-contrast) * _max_analog)>>2; //Values will automatically get mapped to max of 12-bit - https://www.pjrc.com/teensy/td_pulse.html; contrast is also inverted and maxes out at about 1/4 full range
   
   analogWrite(_contrast_pin, bit_contrast);
-  Serial.println(bit_contrast);
 }
 
 //Adjust backlightintensity
@@ -252,9 +251,6 @@ boolean LCD::monitorPresent(){
       if(r != (a & 0xF0) && a != 0x28 && a != 0x68) return false;
       else if((a == 0x28 && r != (0x40 & 0xF0)) || (a == 0x68 && r != (0x0 & 0xF0))) return false; //These two slots roll over to the next line
     }
-    Serial.print(a);
-    Serial.print(" ");
-    Serial.println(r);
   }
   return true;
 }
