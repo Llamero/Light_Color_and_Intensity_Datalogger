@@ -63,7 +63,7 @@ TwoWire* color_port = &Wire;
 TwoWire* light_port = &Wire1;
 
 //Setup joystick pins
-int joystick_pins[] = {9, 11, 2, 7, 10}; //Joystick pins - up, right, down, left, push 
+const int joystick_pins[] = {9, 11, 2, 7, 10}; //Joystick pins - up, right, down, left, push 
 
 //Setup battery test pin numbers
 int coin_test_pin = 36;
@@ -134,7 +134,6 @@ void setup() {
 
 void loop() {
   int wakeup_source;
-  Serial.println("Sleeping...");
   wakeup_source = Snooze.hibernate(hibernate_config);
   if(wakeup_source < 33){ //If source is <33, then it was a digital pin wakeup - i.e. joystick
     
@@ -144,12 +143,17 @@ void loop() {
       
     }
     else{
+      
     }
   }
   digitalWriteFast(LED_BUILTIN, HIGH);
   delay(1000);
   digitalWriteFast(LED_BUILTIN, LOW);
   delay(1000); //If log is not active, ignore RTC alarm
+}
+
+void hibernateTeensy(){
+  
 }
 
 void initializeDevice(){
@@ -168,7 +172,6 @@ void initializeDevice(){
 
   //Initialize RTC timer wake from hibernate
   alarm.setRtcTimer(log_interval[0], log_interval[1], log_interval[2]);
-  //alarm.setRtcTimer(0, 0, 5);
   
   //Power on the sensors
   pinMode(temp_power_pin, OUTPUT);
