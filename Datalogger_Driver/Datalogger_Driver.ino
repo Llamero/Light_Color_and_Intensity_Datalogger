@@ -8,15 +8,9 @@
 #include <Snooze.h> //Put Teensy into low power state between log points
 #include <SD.h> //Store data onto SD card
 
-//Allow Teensy to re-run setup when settings are changed
-#define CPU_RESTART_ADDR (uint32_t *)0xE000ED0C
-#define CPU_RESTART_VAL 0x5FA0004
-#define CPU_RESTART (*CPU_RESTART_ADDR = CPU_RESTART_VAL);
-
 //Setup default parameters
 int n_logs_per_file = 10000; //The number of logs to save to a file before creating a new low file
-int log_interval = 10; //Number of interval units between logs
-char log_interval_unit[] = "seconds"; //Valid interval units - "seconds", "minutes", "hours", "days", "months", "years"
+int log_interval[] = {0, 0, 10}; //Number of hours, minutes, and seconds between log intervals
 const char boot_dir[] = "boot_log"; //Directory to save boot log files into - max length 8 char
 const char log_dir[] = "data_log"; //Directory to save data log files into - max length 8 char
 boolean measure_temp = true;
@@ -30,6 +24,16 @@ boolean backlight_on_standby = false; //Turn on backlight when not logging
 boolean backlight_on_log = false; //Turn on backlight while logging
 boolean display_on_standby = true; //Turn on display when not logging 
 boolean display_on_log = false; //Turn on display while logging
+
+//Allow Teensy to re-run setup when settings are changed - Call "CPU_RESTART"
+#define CPU_RESTART_ADDR (uint32_t *)0xE000ED0C
+#define CPU_RESTART_VAL 0x5FA0004
+#define CPU_RESTART (*CPU_RESTART_ADDR = CPU_RESTART_VAL);
+
+// Load drivers
+SnoozeDigital digital;
+SnoozeAlarm  alarm;
+SnoozeBlock hibernate_config(digital, alarm);
 
 //Setup LCD pin numbers and initial parameters
 int DB_pin_array[] = {32, 31, 8, 6, 5, 4, 3, 1}; //List of DB0-DB7 pins to send data to LCD - 4-pin is not fully supported
@@ -58,6 +62,9 @@ TwoWire* temp_port = &Wire; //Set I2C (wire) ports
 TwoWire* color_port = &Wire;
 TwoWire* light_port = &Wire1;
 
+//Setup joystick pins
+int joystick_pins[] = {9, 11, 2, 7, 10}; //Joystick pins - up, right, down, left, push 
+
 //Setup battery test pin numbers
 int coin_test_pin = 36;
 int coin_analog_pin = A1;
@@ -81,6 +88,7 @@ boolean color_on = false;
 boolean light_present = false;
 boolean light_on = false;
 boolean coin_present = false;
+boolean SD_present = false;
 
 //File status
 boolean boot_log_saved = false; //Whether the boot log has been saved to the SD card
@@ -91,12 +99,14 @@ const int boot_dim2 = 20; //Number of columns (characters per line)
 char boot_array[boot_dim1][boot_dim2]; //Array for boot display
 int boot_index = 0; //Index of boot message
 int warning_count = 0; //Number of warnings encountered during boot 
+boolean boot_saved = false; //Whether the most recent boot log has been saved to the SD card
 int time_index = 0; //Index of boot_array where time stamp is stored
 const int log_dim1 = 1000; //Number of rows (total lines)
 const int log_dim2 = 100; //Number of columns (characters per line)
 volatile char internal_log_backup[1000][100]; //Array for storing data logs while SD card is not available
 char current_file_name[13]; //Storing the current log file name - max length for FAT32 is 8.3 - 13 characters total including null at end
 int log_file_count = 0; //Counter for tracking number of log files in ascii (track files from aa to zz)
+boolean log_active = false; //Whether the device is actively logging or in standby state
 
 //Initialize libraries
 Adafruit_BME280 temp_sensor; //Create instance of temp sensor
@@ -123,24 +133,42 @@ void setup() {
 }
 
 void loop() {
-  delay(100);
-  digitalWriteFast(LED_BUILTIN, HIGH);
-  delayMicroseconds(100);
-  digitalWriteFast(LED_BUILTIN, LOW);
-  delayMicroseconds(100);
-  if(Serial.available()){
-    while(Serial.available()) Serial.read();
-    initializeDevice();
+  int wakeup_source;
+  Serial.println("Sleeping...");
+  wakeup_source = Snooze.hibernate(hibernate_config);
+  if(wakeup_source < 33){ //If source is <33, then it was a digital pin wakeup - i.e. joystick
+    
   }
+  else if(wakeup_source == 35){ //35 is RTC alarm wakeup
+    if(log_active){
+      
+    }
+    else{
+    }
+  }
+  digitalWriteFast(LED_BUILTIN, HIGH);
+  delay(1000);
+  digitalWriteFast(LED_BUILTIN, LOW);
+  delay(1000); //If log is not active, ignore RTC alarm
 }
 
 void initializeDevice(){
+  log_active = false;
   boot_index = 0;
   strcpy(boot_array[boot_index++], "Boot status:        ");
 
   //Turn off Teensy LED
   pinMode(LED_BUILTIN, OUTPUT); 
   digitalWriteFast(LED_BUILTIN, LOW);
+
+  //Initialize joystick pins - map to digital wake from hibernate
+  for(int a = 0; a<5; a++){
+    digital.pinMode(joystick_pins[a], INPUT_PULLUP, RISING);
+  }
+
+  //Initialize RTC timer wake from hibernate
+  alarm.setRtcTimer(log_interval[0], log_interval[1], log_interval[2]);
+  //alarm.setRtcTimer(0, 0, 5);
   
   //Power on the sensors
   pinMode(temp_power_pin, OUTPUT);
@@ -326,13 +354,21 @@ void initializeDevice(){
       }
     }
   }
-
+  
+  //Report number of warning encountered
+  if(warning_count){
+    sprintf(boot_array[boot_index++], "% 2d Warnings on boot!", warning_count);
+  }
+  else{
+    strcpy(boot_array[boot_index++], "Success! 0 Warnings ");
+  }
+  
   //Save current boot log
   sprintf(current_file_name, "%02d%02d%02d%c%c.txt", year(unix_t)-2000, month(unix_t), day(unix_t), (log_file_count/26)+97, (log_file_count%26)+97); 
   if(log_file_count++ >= 26*26) log_file_count = 0;
-  if(!saveToSD(boot_dir, current_file_name, (char *) boot_array, boot_index, boot_dim2)){
+  boot_saved = saveToSD(boot_dir, current_file_name, (char *) boot_array, boot_index, boot_dim2);
+  if(!boot_saved){
     strcpy(boot_array[boot_index++], "Boot save FAIL!     ");
-    warning_count += 1; 
   }
     
   if(Serial){
@@ -348,6 +384,8 @@ void initializeDevice(){
     // list all files in the card with date and size
     root.ls(LS_R | LS_DATE | LS_SIZE);
   }
+  strcpy(boot_array[boot_index++], "Use stick to scroll ");
+  strcpy(boot_array[boot_index++], "Press stick to cont.");
   if(display_present){
     for(int a = 0; a<boot_index-3; a++){
       lcd.displayCharArray(boot_array, a, a+1, a+2, a+3);
