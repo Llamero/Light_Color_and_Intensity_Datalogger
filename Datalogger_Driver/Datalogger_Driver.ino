@@ -8,6 +8,11 @@
 #include <Snooze.h> //Put Teensy into low power state between log points
 #include <SD.h> //Store data onto SD card
 
+//Allow Teensy to re-run setup when settings are changed
+#define CPU_RESTART_ADDR (uint32_t *)0xE000ED0C
+#define CPU_RESTART_VAL 0x5FA0004
+#define CPU_RESTART (*CPU_RESTART_ADDR = CPU_RESTART_VAL);
+
 //Setup default parameters
 int n_logs_per_file = 10000; //The number of logs to save to a file before creating a new low file
 int log_interval = 10; //Number of interval units between logs
@@ -100,7 +105,7 @@ Adafruit_TSL2591 light_sensor = Adafruit_TSL2591(2591); //Create instance of lig
 LCD lcd(DB_pin_array, n_DB_pin, RS_pin, RW_pin, E_pin, LCD_toggle_pin, LED_PWM_pin, contrast_pin, analog_resolution); //Create instance of LCD display
 
 //------------------------------------------------------------------------------
-// call back for file timestamps
+// call back for file timestamps - from: https://forum.arduino.cc/index.php?topic=348562.0
 void dateTime(uint16_t* date, uint16_t* time) {
  time_t unix_t = now();
  // return date using FAT_DATE macro to format fields
@@ -114,6 +119,23 @@ time_t unix_t = 0;
 float contrast = 0;
 
 void setup() {
+  initializeDevice();
+}
+
+void loop() {
+  delay(100);
+  digitalWriteFast(LED_BUILTIN, HIGH);
+  delayMicroseconds(100);
+  digitalWriteFast(LED_BUILTIN, LOW);
+  delayMicroseconds(100);
+  if(Serial.available()){
+    while(Serial.available()) Serial.read();
+    initializeDevice();
+  }
+}
+
+void initializeDevice(){
+  boot_index = 0;
   strcpy(boot_array[boot_index++], "Boot status:        ");
 
   //Turn off Teensy LED
@@ -125,22 +147,35 @@ void setup() {
   pinMode(color_power_pin, OUTPUT);
   pinMode(light_power_pin, OUTPUT);
   pinMode(I2C_pullup_pin, OUTPUT);
-  digitalWriteFast(temp_power_pin, HIGH);
-  digitalWriteFast(color_power_pin, HIGH);
-  digitalWriteFast(light_power_pin, HIGH);
-  digitalWriteFast(I2C_pullup_pin, HIGH);
+  digitalWriteFast(temp_power_pin, (measure_temp || measure_humidity || measure_pressure)); //Power BME280 if any evironmental variable is to be sensed
+  digitalWriteFast(color_power_pin, measure_color);
+  digitalWriteFast(light_power_pin, measure_lux);
+  digitalWriteFast(I2C_pullup_pin, (measure_temp || measure_humidity || measure_pressure || measure_lux || measure_color));
 
   //Set battery test pins
   pinMode(coin_test_pin, OUTPUT);
   pinMode(Vin_test_pin, OUTPUT);
   digitalWriteFast(coin_test_pin, LOW); //Disconnect coin cell from ADC
   digitalWriteFast(Vin_test_pin, LOW); //Disconnect battery from ADC
-  pinMode(coin_analog_pin, INPUT); //Set coin cell ADC to floating high impedance
-  pinMode(Vin_analog_pin, INPUT); //Set battery ADC to floating high impedance
- 
+  if(measure_battery){
+    pinMode(coin_analog_pin, INPUT); //Set coin cell ADC to floating high impedance
+    pinMode(Vin_analog_pin, INPUT); //Set battery ADC to floating high impedance
+  }
+  
   //Setup USB serial communication
   Serial.begin(9600); //Baud rate is ignored and negotiated with computer for max speed
   wakeUSB();
+
+  //Synchronize Teensy clock to computer clock
+  setSyncProvider(getTeensy3Time); //Sync to computer clock - do not use () in function as argument
+  if (timeStatus()!= timeSet) { //If sync failed
+    strcpy(boot_array[boot_index++], "RTC time sync fail! ");
+    warning_count += 1;
+  } else { // if Sync successful
+    strcpy(boot_array[boot_index++], "RTC sync successful ");
+  }
+  unix_t = now();
+  sprintf(boot_array[boot_index++], "%4d/%02d/%02d %02d:%02d:%02d ", year(unix_t), month(unix_t), day(unix_t), hour(unix_t), minute(unix_t), second(unix_t)); //Write current time to boot screen
   
   //Setup I2C communication to highest speed chips sill support - sensor libraries will initialize I2C communications
   Wire.setClock(400000); 
@@ -177,17 +212,6 @@ void setup() {
     display_on = false;
     backlight_on = false;
   }
-
-  //Synchronize Teensy clock to computer clock
-  setSyncProvider(getTeensy3Time); //Sync to computer clock - do not use () in function as argument
-  if (timeStatus()!= timeSet) { //If sync failed
-    strcpy(boot_array[boot_index++], "RTC time sync fail! ");
-    warning_count += 1;
-  } else { // if Sync successful
-    strcpy(boot_array[boot_index++], "RTC sync successful ");
-  }
-  unix_t = now();
-  sprintf(boot_array[boot_index++], "%4d/%02d/%02d %02d:%02d:%02d ", year(unix_t), month(unix_t), day(unix_t), hour(unix_t), minute(unix_t), second(unix_t)); //Write current time to boot screen
 
   //Initialize sensors
   if(temp_sensor.begin(0x77, temp_port)){
@@ -272,17 +296,11 @@ void setup() {
           volumesize /= 1000;
           sprintf(boot_array[boot_index++], "Size: % 8.4fTB    ", volumesize); 
         }
-        else{
-          sprintf(boot_array[boot_index++], "Size: % 8.4fGB    ", volumesize); 
-        }
+        else sprintf(boot_array[boot_index++], "Size: % 8.4fGB    ", volumesize); 
       }
-      else{
-        sprintf(boot_array[boot_index++], "Size: % 8.4fMB    ", volumesize); 
-      }
+      else sprintf(boot_array[boot_index++], "Size: % 8.4fMB    ", volumesize); 
     }
-    else{
-      sprintf(boot_array[boot_index++], "Size: % 8.4fkB    ", volumesize);
-    }
+    else sprintf(boot_array[boot_index++], "Size: % 8.4fkB    ", volumesize);
   }
   else{
     strcpy(boot_array[boot_index++], "No FAT16/32 volume! ");
@@ -290,27 +308,28 @@ void setup() {
   }
   
   //Create directories for saving log files and boot info
-  if(!SD.begin(chipSelect)){
-    strcpy(boot_array[boot_index++], "SD initialize failed");
-    warning_count += 1;
-  }
-  if(!SD.exists(boot_dir)){ 
-    if(!SD.mkdir(boot_dir)){
-      strcpy(boot_array[boot_index++], "SD.mkdir() failed!  ");
+  if(!SD.exists(boot_dir)){ //Don't run begin again if it has already been run - known bug in SD.h library: https://arduino.stackexchange.com/questions/3850/sd-begin-fails-second-time
+    if(!SD.begin(chipSelect)){
+      strcpy(boot_array[boot_index++], "SD initialize failed");
       warning_count += 1;
     }
-  }
-  if(!SD.exists(log_dir)){
-    if(!SD.mkdir(log_dir)){
-      strcpy(boot_array[boot_index++], "SD.mkdir() failed!  ");
-      warning_count += 1;
+    if(!SD.exists(boot_dir)){ 
+      if(!SD.mkdir(boot_dir)){
+        strcpy(boot_array[boot_index++], "SD.mkdir() failed!  ");
+        warning_count += 1;
+      }
+    }
+    if(!SD.exists(log_dir)){
+      if(!SD.mkdir(log_dir)){
+        strcpy(boot_array[boot_index++], "SD.mkdir() failed!  ");
+        warning_count += 1;
+      }
     }
   }
 
   //Save current boot log
-  sprintf(current_file_name, "%02d%02d%02d%c%c.txt", year(unix_t)-2000, month(unix_t), day(unix_t), (log_file_count%26)+97, (log_file_count/26)+97); 
+  sprintf(current_file_name, "%02d%02d%02d%c%c.txt", year(unix_t)-2000, month(unix_t), day(unix_t), (log_file_count/26)+97, (log_file_count%26)+97); 
   if(log_file_count++ >= 26*26) log_file_count = 0;
-  Serial.println(current_file_name);
   if(!saveToSD(boot_dir, current_file_name, (char *) boot_array, boot_index, boot_dim2)){
     strcpy(boot_array[boot_index++], "Boot save FAIL!     ");
     warning_count += 1; 
@@ -336,16 +355,6 @@ void setup() {
     }
   }
 }
-
-void loop() {
-  delay(100);
-  digitalWriteFast(LED_BUILTIN, HIGH);
-  delayMicroseconds(100);
-  digitalWriteFast(LED_BUILTIN, LOW);
-  delayMicroseconds(100);
-}
-
-
 
 time_t getTeensy3Time(){
   return Teensy3Clock.get();
@@ -381,8 +390,8 @@ float checkVin(){
 
 //Save data to the SD card
 boolean saveToSD(char (*dir), char (*file_name), char *data_array, int n_lines, int n_col){
-  char file_path[500];
-  char data_line[n_col];
+  char file_path[100];
+  char data_line[n_col+1];
   int i = -1;
   int j = -1;
   int dir_len;
@@ -393,8 +402,7 @@ boolean saveToSD(char (*dir), char (*file_name), char *data_array, int n_lines, 
   file_path[i] = '/';
   while(file_name[++j]) file_path[++i] = file_name[j];
   file_path[++i] = 0;
-  Serial.println(file_path);
-  Serial.println(file_name);
+
   //Open file
   f = SD.open(file_path, FILE_WRITE);
   if(f){
@@ -402,11 +410,10 @@ boolean saveToSD(char (*dir), char (*file_name), char *data_array, int n_lines, 
       for(int b=0; b<n_col; b++){
         data_line[b] = *((data_array + a*n_col) + b);
       }
+      data_line[20] = 0; //Force termination at end of string - prevent overlfow issues
       f.println(data_line);
-      Serial.print("DATA: ");
-      Serial.println(data_line);
     }
-    f.close();
+    f.close(); //File timestamp applied on close (save)
     return true;
   }
   return false;
