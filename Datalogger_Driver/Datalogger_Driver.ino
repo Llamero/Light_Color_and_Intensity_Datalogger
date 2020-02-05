@@ -35,9 +35,9 @@ SnoozeAlarm  alarm;
 SnoozeBlock hibernate_config(digital, alarm);
 
 //Setup LCD pin numbers and initial parameters
-const uint8_t LCD_pin[] = {30, 34, 35, 5, 4, 3, 1};
+const uint8_t LCD_pin[] = {30, 34, 35, 5, 4, 3, 1}; //Only 4-pin supported in LiquidCrystalFast
               // LCD pins: RS  RW  EN  D4 D5 D6 D7
-LiquidCrystalFast lcd(LCD_pin[0], LCD_pin[1], LCD_pin[2], LCD_pin[3], LCD_pin[4], LCD_pin[5], LCD_pin[6]); //Only 4-pin supported in LiquidCrystalFast
+LiquidCrystalFast lcd(LCD_pin[0], LCD_pin[1], LCD_pin[2], LCD_pin[3], LCD_pin[4], LCD_pin[5], LCD_pin[6]); 
 const uint8_t LCD_toggle_pin = 24; //Set to high to power on LCD
 const uint8_t LED_PWM_pin = 29; //Drive LED backlight intensity
 const uint8_t contrast_pin = A21; //DAC pin for addjusting diplay contrast
@@ -260,29 +260,6 @@ void cycleWindow(uint8_t src){
   lcd.setCursor(LCD_dim_x-2, 3);
   lcd.write(1);
 }
-//  //Retrieve and print corresponding strings
-//  for(int a=LCD_line_index; a<LCD_line_index+4; a++){
-//    for(int b=0; b<LCD_dim_x; b++){
-//      disp_line[b] = *((LCD_windows[LCD_window_index] + a*LCD_dim_x) + b);
-//    }
-//    disp_line[LCD_dim_x-1] = 0; //Force termination at end of string - prevent overlfow issues
-//    lcd.setCursor(0,a-LCD_line_index);
-//    lcd.println(disp_line);  
-//  }
-//  //Add scroll arrows if window continues past edge
-//  if(LCD_line_index){
-//    lcd.setCursor(LCD_dim_x-2, 0);
-//    lcd.write(0);
-//  }
-//  if(LCD_line_index < LCD_window_lines[LCD_window_index]-4){
-//    lcd.setCursor(LCD_dim_x-2, 3);
-//    lcd.write(1);
-//  }
-//  n_windows
-//  char *LCD_windows[3] = {(*boot_disp)[LCD_dim_x], (*log_disp)[LCD_dim_x], (*settings_disp)[LCD_dim_x]}; //Array of windows available for LCD
-//uint8_t LCD_window_index = 0; //Current LCD window being displayed
-//uint8_t LCD_line_index = 0; //Current index of top line being displayed
-//uint8_t LCD_window_lines[] = {boot_dim_y, log_disp_dim_y, settings_dim_y}; //Array of total number of lines for each window
 
 //Check all components and write boot log
 void initializeDevice(){
