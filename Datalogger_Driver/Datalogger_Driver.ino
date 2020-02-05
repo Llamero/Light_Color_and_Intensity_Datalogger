@@ -111,12 +111,11 @@ boolean SD_present = false;
 //File status
 const uint8_t boot_dim_y = 20; //Number of rows (total lines)
 const uint8_t LCD_dim_x = 21; //Number of columns (characters per line) - add one character for null character to delineate strings
-const uint8_t LCD_max_lines = 25; //Maximum number of lines per window
-char boot_disp[LCD_max_lines][LCD_dim_x]; //Array for boot display
+char boot_disp[boot_dim_y][LCD_dim_x]; //Array for boot display
 const uint8_t log_disp_dim_y = 14; //Number of rows (total lines)
-char log_disp[LCD_max_lines][LCD_dim_x] = {"Log Status:         ","Date:               ","Time:               ","Temp(°C):           ","Pres(hPa):          ","Humidity(%):        ","lux:                ","Red(µW):            ","Green(µW):          ","Blue(µW):           ","Clear(uW):          ","Vin:                ","Vbat:               ","Comment:            ","                    ","                    ","                    ","                    ","                    ","                    ","                    ","                    ","                    ","                    ","                    "};
+char log_disp[log_disp_dim_y][LCD_dim_x] = {"Log Status:         ","Date:               ","Time:               ","Temp(°C):           ","Pres(hPa):          ","Humidity(%):        ","lux:                ","Red(µW):            ","Green(µW):          ","Blue(µW):           ","Clear(uW):          ","Vin:                ","Vbat:               ","Comment:            "};
 const uint8_t settings_dim_y = 23; //Number of rows (total lines)
-char settings_disp[LCD_max_lines][LCD_dim_x] = {"Settings:           ","-------SENSORS------","Temperature:        ","Humidity:           ","Pressure:           ","Lux:                ","Color:              ","Battery:            ","----LOG INTERVAL----", "Seconds:            ","Minutes:            ","Hours:              ","----LCD SETTINGS----","Contrast:           ","Backlight:          ","Disable on log:     ","----LOG INTERVAL----", "Seconds:            ","Minutes:            ","Hours:              ","----RTC SETTINGS----","Date:               ","Time:               ","                    ","                    "};
+char settings_disp[settings_dim_y][LCD_dim_x] = {"Settings:           ","-------SENSORS------","Temperature:        ","Humidity:           ","Pressure:           ","Lux:                ","Color:              ","Battery:            ","----LOG INTERVAL----", "Seconds:            ","Minutes:            ","Hours:              ","----LCD SETTINGS----","Contrast:           ","Backlight:          ","Disable on log:     ","----LOG INTERVAL----", "Seconds:            ","Minutes:            ","Hours:              ","----RTC SETTINGS----","Date:               ","Time:               "};
 const uint8_t n_windows = 3;
 char *LCD_windows[] = {(char *) boot_disp, (char *) log_disp, (char *) settings_disp}; //Array of windows available for LCD
 uint8_t LCD_window_index = 0; //Current LCD window being displayed
@@ -153,15 +152,18 @@ void dateTime(uint16_t* date, uint16_t* time) {
 
 time_t unix_t = 0;
 float contrast = 0;
-
+boolean a;
 void setup() {
   initializeDevice();
 }
 
 void loop() {
   uint8_t wakeup_source;
+  if(LCD_line_index == LCD_window_lines[LCD_window_index]-4) a = false;
+  if(!LCD_line_index) a = true;
   //wakeup_source = Snooze.hibernate(hibernate_config);
-  wakeupEvent(joystick_pins[0]);
+  if(a) wakeupEvent(joystick_pins[2]);
+  else wakeupEvent(joystick_pins[0]);
 }
 
 void wakeupEvent(uint8_t src){
@@ -179,15 +181,16 @@ void wakeupEvent(uint8_t src){
     //logDataPoint();
   }
   digitalWriteFast(LED_BUILTIN, HIGH);
-  delay(1000);
+  delay(500);
   digitalWriteFast(LED_BUILTIN, LOW);
-  delay(1000); //If log is not active, ignore RTC alarm
+  delay(500); //If log is not active, ignore RTC alarm
 }
 
 //Use the up and down buttons to vertically scroll through the current window
 void scrollWindow(uint8_t src){
   char disp_line[LCD_dim_x];
   char* disp_pointer = LCD_windows[LCD_window_index];
+  if(LCD_line_index > LCD_window_lines[LCD_window_index]-4) LCD_line_index = LCD_window_lines[LCD_window_index]-4; //Reset LCD line index if it is out of bounds
   if(src == joystick_pins[0]){ //If up press, scroll window up
     if(!LCD_line_index) return; //If already at the top, do nothing
     else LCD_line_index--;
@@ -197,14 +200,23 @@ void scrollWindow(uint8_t src){
     else LCD_line_index++; 
   }
 
+  //Retrieve and print corresponding strings
   for(int a=LCD_line_index; a<LCD_line_index+4; a++){
     for(int b=0; b<LCD_dim_x; b++){
       disp_line[b] = *((disp_pointer + a*LCD_dim_x) + b);
     }
     disp_line[LCD_dim_x-1] = 0; //Force termination at end of string - prevent overlfow issues
-    Serial.println(disp_line);
     lcd.setCursor(0,a-LCD_line_index);
     lcd.println(disp_line);  
+  }
+  //Add scroll arrows if window continues past edge
+  if(LCD_line_index){
+    lcd.setCursor(LCD_dim_x-2, 0);
+    lcd.write(0);
+  }
+  if(LCD_line_index < LCD_window_lines[LCD_window_index]-4){
+    lcd.setCursor(LCD_dim_x-2, 3);
+    lcd.write(1);
   }
 }
 //  n_windows
