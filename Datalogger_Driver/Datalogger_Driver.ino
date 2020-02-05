@@ -9,8 +9,8 @@
 #include <SD.h> //Store data onto SD card
 
 //Setup default parameters
-int n_logs_per_file = 10000; //The number of logs to save to a file before creating a new low file
-int log_interval[] = {0, 0, 10}; //Number of hours, minutes, and seconds between log intervals
+uint16_t n_logs_per_file = 10000; //The number of logs to save to a file before creating a new low file
+int log_interval[] = {0, 0, 1}; //Number of hours, minutes, and seconds between log intervals
 const char boot_dir[] = "boot_log"; //Directory to save boot log files into - max length 8 char
 const char log_dir[] = "data_log"; //Directory to save data log files into - max length 8 char
 boolean measure_temp = true;
@@ -20,10 +20,9 @@ boolean measure_lux = true;
 boolean measure_color = true;
 boolean measure_battery = true;
 
-boolean backlight_on_standby = false; //Turn on backlight when not logging
-boolean backlight_on_log = false; //Turn on backlight while logging
-boolean display_on_standby = true; //Turn on display when not logging 
-boolean display_on_log = false; //Turn on display while logging
+boolean disable_display_on_log = false; //Completely power down display during logging
+const float default_backlight = 1.0; //Set default backlight intensity to full brightness (range is 0-1)
+const float default_contrast = 0.5; //Set default LCD contrast to half range (range is 0-1)
 
 //Allow Teensy to re-run setup when settings are changed - Call "CPU_RESTART"
 #define CPU_RESTART_ADDR (uint32_t *)0xE000ED0C
@@ -45,8 +44,6 @@ const uint8_t contrast_pin = A21; //DAC pin for addjusting diplay contrast
 const uint8_t analog_resolution = 16; //Number of bits in PWM and DAC analog  - PWM cap is 16, DAC cap is 12 - auto capped in code - https://www.pjrc.com/teensy/td_pulse.html
 const uint16_t analog_max = (1<<analog_resolution)-1; //Highest analog value
 const uint32_t analog_freq = 24000000/(1<<analog_resolution); //Calculate freq based on fastest for minimum clock speed - 24 MHz
-const float default_backlight = 1.0; //Set default backlight intensity to full brightness (range is 0-1)
-const float default_contrast = 0.5; //Set default LCD contrast to half range (range is 0-1)
 
 //Define LCD custom characters
 const uint8_t up_arrow[8] = {
@@ -72,30 +69,31 @@ const uint8_t down_arrow[8] = {
 };
 
 //Setup sensor pin numbers
-const int temp_power_pin = 20; //Set Vcc pins
-const int color_power_pin = 23;
-const int light_power_pin = 17;
-const int color_interrupt_pin = 16; //Set interrupt pins
-const int light_interrupt_pin = 33;
-const int I2C_pullup_pin = 12; //Pin providing I2C pullup voltage
+const uint8_t temp_power_pin = 20; //Set Vcc pins
+const uint8_t color_power_pin = 23;
+const uint8_t light_power_pin = 17;
+const uint8_t color_interrupt_pin = 16; //Set interrupt pins
+const uint8_t light_interrupt_pin = 33;
+const uint8_t I2C_pullup_pin = 12; //Pin providing I2C pullup voltage
 TwoWire* temp_port = &Wire; //Set I2C (wire) ports
 TwoWire* color_port = &Wire;
 TwoWire* light_port = &Wire1;
 
 //Setup joystick pins
-const int joystick_pins[] = {9, 11, 2, 7, 10}; //Joystick pins - up, right, down, left, push 
+const uint8_t joystick_pins[] = {9, 11, 2, 7, 10}; //Joystick pins - up, right, down, left, push 
 
 //Setup battery test pin numbers
-const int coin_test_pin = 36;
-const int coin_analog_pin = A1;
-const int Vin_test_pin = 39;
-const int Vin_analog_pin = A0; 
+const uint8_t coin_test_pin = 36;
+const uint8_t coin_analog_pin = A1;
+const uint8_t Vin_test_pin = 39;
+const uint8_t Vin_analog_pin = A0; 
 
 //Setup SD card
 const int chipSelect = BUILTIN_SDCARD;
 Sd2Card card;
 SdVolume volume;
 SdFile root;
+boolean boot_file_saved = false; //Whether the boot log has been saved to the SD card
 
 //Component status
 boolean display_present = false;
@@ -111,19 +109,24 @@ boolean coin_present = false;
 boolean SD_present = false;
 
 //File status
-boolean boot_log_saved = false; //Whether the boot log has been saved to the SD card
-int log_index = 0; //Index of log array
-const char log_header[] = "Date,Time,Temperature (°C),Pressure (hPa),Humidity (%),Light Intensity (lux),Red (µW/cm^2),Green (µW/cm^2),Blue (µW/cm^2),Clear (µW/cm^2),Vin (V),Vbat (V),Comment,";
-const int boot_dim1 = 20; //Number of rows (total lines)
-const int boot_dim2 = 20; //Number of columns (characters per line)
-char boot_array[boot_dim1][boot_dim2]; //Array for boot display
-int boot_index = 0; //Index of boot message
+const uint8_t boot_dim_y = 20; //Number of rows (total lines)
+const uint8_t LCD_dim_x = 21; //Number of columns (characters per line) - add one character for null character to delineate strings
+char boot_disp[boot_dim_y][LCD_dim_x]; //Array for boot display
+const uint16_t log_disp_dim_y = 14; //Number of rows (total lines)
+char log_disp[log_disp_dim_y][LCD_dim_x] = {"Log Status:         ","Date:               ","Time:               ","Temp(°C):           ","Pres(hPa):          ","Humidity(%):        ","lux:                ","Red(µW):            ","Green(µW):          ","Blue(µW):           ","Clear(uW):          ","Vin:                ","Vbat:               ","Comment:            "};
+const uint16_t settings_dim_y = 23; //Number of rows (total lines)
+char settings_disp[settings_dim_y][LCD_dim_x] = {"Settings:           ","-------SENSORS------","Temperature:        ","Humidity:           ","Pressure:           ","Lux:                ","Color:              ","Battery:            ","----LOG INTERVAL----", "Seconds:            ","Minutes:            ","Hours:              ","----LCD SETTINGS----","Contrast:           ","Backlight:          ","Disable on log:     ","----LOG INTERVAL----", "Seconds:            ","Minutes:            ","Hours:              ","----RTC SETTINGS----","Date:               ","Time:               "};
+char *LCD_windows[3] = {(*boot_disp)[LCD_dim_x], (*log_disp)[LCD_dim_x], (*settings_disp)[LCD_dim_x]}; //Array of windows available for LCD
+uint8_t LCD_window_index = 0; //Current LCD window being displayed
+uint8_t LCD_line_index = 0; //Current index of top line being displayed
+const char log_header[] = {"Date,Time,Temperature(°C),Pressure(hPa),Humidity(%),Intensity(lux),Red(µW/cm^2),Green(µW/cm^2),Blue(µW/cm^2),Clear(µW/cm^2),Vin(V),Vbat(V),Comment,"};
+uint8_t boot_index = 0; //Index of boot message
 int warning_count = 0; //Number of warnings encountered during boot 
-boolean boot_saved = false; //Whether the most recent boot log has been saved to the SD card
-int time_index = 0; //Index of boot_array where time stamp is stored
-const int log_dim1 = 1000; //Number of rows (total lines)
-const int log_dim2 = 100; //Number of columns (characters per line)
-volatile char internal_log_backup[1000][100]; //Array for storing data logs while SD card is not available
+const uint16_t log_dim_y = 1000; //Number of rows (total lines)
+const uint8_t log_dim_x = 100; //Number of columns (characters per line)
+volatile char internal_log_backup[log_dim_y][log_dim_x]; //Array for storing data logs while SD card is not available
+uint16_t log_internal_index = 0; //Index of internal log array
+uint16_t log_file_index = 0; //Index of current line in log file
 char current_file_name[13]; //Storing the current log file name - max length for FAT32 is 8.3 - 13 characters total including null at end
 int log_file_count = 0; //Counter for tracking number of log files in ascii (track files from aa to zz)
 boolean log_active = false; //Whether the device is actively logging or in standby state
@@ -153,29 +156,26 @@ void setup() {
 }
 
 void loop() {
-  int wakeup_source;
+  uint8_t wakeup_source;
   //wakeup_source = Snooze.hibernate(hibernate_config);
-  if(wakeup_source < 33){ //If source is <33, then it was a digital pin wakeup - i.e. joystick
-    
-  }
-  else if(wakeup_source == 35){ //35 is RTC alarm wakeup
-    if(log_active){
-      
-    }
-    else{
-      
-    }
-  }
-  digitalWriteFast(LED_BUILTIN, HIGH);
+  wakeupEvent(wakeup_source);
+}
+
+void wakeupEvent(uint8_t src){
+  //joystick_pins[] = {9, 11, 2, 7, 10}; //Joystick pins - up, right, down, left, push 
+  //if(src == joystick_pins[]
+    digitalWriteFast(LED_BUILTIN, HIGH);
   delay(1000);
   digitalWriteFast(LED_BUILTIN, LOW);
   delay(1000); //If log is not active, ignore RTC alarm
 }
 
+
+//Check all components and write boot log
 void initializeDevice(){
   log_active = false;
   boot_index = 0;
-  strcpy(boot_array[boot_index++], "Boot status:        ");
+  strcpy(boot_disp[boot_index++], "Boot status:        ");
 
   //Turn off Teensy LED
   pinMode(LED_BUILTIN, OUTPUT); 
@@ -216,13 +216,13 @@ void initializeDevice(){
   //Synchronize Teensy clock to computer clock
   setSyncProvider(getTeensy3Time); //Sync to computer clock - do not use () in function as argument
   if (timeStatus()!= timeSet) { //If sync failed
-    strcpy(boot_array[boot_index++], "RTC time sync fail! ");
+    strcpy(boot_disp[boot_index++], "RTC time sync fail! ");
     warning_count += 1;
   } else { // if Sync successful
-    strcpy(boot_array[boot_index++], "RTC sync successful ");
+    strcpy(boot_disp[boot_index++], "RTC sync successful ");
   }
   unix_t = now();
-  sprintf(boot_array[boot_index++], "%4d/%02d/%02d %02d:%02d:%02d ", year(unix_t), month(unix_t), day(unix_t), hour(unix_t), minute(unix_t), second(unix_t)); //Write current time to boot screen
+  sprintf(boot_disp[boot_index++], "%4d/%02d/%02d %02d:%02d:%02d ", year(unix_t), month(unix_t), day(unix_t), hour(unix_t), minute(unix_t), second(unix_t)); //Write current time to boot screen
   
   //Setup I2C communication to highest speed chips sill support - sensor libraries will initialize I2C communications
   Wire.setClock(400000); 
@@ -239,7 +239,7 @@ void initializeDevice(){
   setLCDcontrast(default_contrast); //Initialize screen contrast to default value
 
   if(monitorPresent()){ //confirm if LCD is present
-    strcpy(boot_array[boot_index++], "Display initialized ");
+    strcpy(boot_disp[boot_index++], "Display initialized ");
     display_present = true;
     display_on = true;
     if(default_backlight > 0){
@@ -250,8 +250,9 @@ void initializeDevice(){
     }
   }
   else{
-    strcpy(boot_array[boot_index++], "Display not found!  ");
+    strcpy(boot_disp[boot_index++], "Display not found!  ");
     warning_count += 1;
+    disableDisplay();
     display_present = false;
     display_on = false;
     backlight_on = false;
@@ -259,36 +260,36 @@ void initializeDevice(){
 
   //Initialize sensors
   if(temp_sensor.begin(0x77, temp_port)){
-    strcpy(boot_array[boot_index++], "Temp sensor....OK   ");
+    strcpy(boot_disp[boot_index++], "Temp sensor....OK   ");
     temp_present = true;
     temp_on = true;
   }
   else{
-    strcpy(boot_array[boot_index++], "Temp sensor....FAIL!");
+    strcpy(boot_disp[boot_index++], "Temp sensor....FAIL!");
     warning_count += 1;
     digitalWriteFast(temp_power_pin, LOW); //Cut power to sensor
     temp_present = false;
     temp_on = false;
   }
   if(color_sensor.begin(0x29, color_port)){
-    strcpy(boot_array[boot_index++], "Color sensor...OK  ");
+    strcpy(boot_disp[boot_index++], "Color sensor...OK  ");
     color_present = true;
     color_on = true;
   }
   else{
-    strcpy(boot_array[boot_index++], "Color sensor...FAIL!");
+    strcpy(boot_disp[boot_index++], "Color sensor...FAIL!");
     warning_count += 1;
     digitalWriteFast(color_power_pin, LOW); //Cut power to sensor
     color_present = false;
     color_on = false;
   }
   if(light_sensor.begin(light_port)){
-    strcpy(boot_array[boot_index++], "Light sensor...OK   ");
+    strcpy(boot_disp[boot_index++], "Light sensor...OK   ");
     light_present = true;
     light_on = true;    
   }
   else{
-    strcpy(boot_array[boot_index++], "Light sensor...FAIL!");
+    strcpy(boot_disp[boot_index++], "Light sensor...FAIL!");
     warning_count += 1;
     digitalWriteFast(light_power_pin, LOW); //Cut power to sensor
     light_present = false;
@@ -298,19 +299,19 @@ void initializeDevice(){
   
   //Test batteries
   float volt = checkVbat();
-  sprintf(boot_array[boot_index++], "VBat: %4.2fV         ", volt);
+  sprintf(boot_disp[boot_index++], "VBat: %4.2fV         ", volt);
   if(volt > 0){
     coin_present = true;
     if(volt < 2.8){
-      strcpy(boot_array[boot_index++], "Vbat low voltage!   ");
+      strcpy(boot_disp[boot_index++], "Vbat low voltage!   ");
       warning_count += 1;
     }
   }
 
   volt = checkVin();
-  sprintf(boot_array[boot_index++], "Vin:  %4.2fV         ", volt);
+  sprintf(boot_disp[boot_index++], "Vin:  %4.2fV         ", volt);
   if(volt < 3.6){
-    strcpy(boot_array[boot_index++], "Vin low voltage!    ");
+    strcpy(boot_disp[boot_index++], "Vin low voltage!    ");
     warning_count += 1;
   }
   
@@ -319,16 +320,17 @@ void initializeDevice(){
 
   //Test SD card
   if (card.init(SPI_HALF_SPEED, chipSelect)) { //Check if SD card is present
-    strcpy(boot_array[boot_index++], "SD card found       ");
+    strcpy(boot_disp[boot_index++], "SD card found       ");
   }
   else{
-    strcpy(boot_array[boot_index++], "SD card not found!  ");
+    strcpy(boot_disp[boot_index++], "SD card not found!  ");
     warning_count += 1;
   }
+  
   if (volume.init(card)) { //Check that there is a FAT32 partition
     int partition = volume.fatType();
     float volumesize;
-    sprintf(boot_array[boot_index++], "FAT%2d volume found  ", partition);
+    sprintf(boot_disp[boot_index++], "FAT%2d volume found  ", partition);
     volumesize = volume.blocksPerCluster();    // clusters are collections of blocks
     volumesize *= volume.clusterCount();       // we'll have a lot of clusters
     volumesize /= 2;
@@ -338,59 +340,57 @@ void initializeDevice(){
         volumesize /= 1000;
         if(volumesize >= 1e3){ //If volume is more than 1TB in size - report size as TB
           volumesize /= 1000;
-          sprintf(boot_array[boot_index++], "Size: % 8.4fTB    ", volumesize); 
+          sprintf(boot_disp[boot_index++], "Size: % 8.4fTB    ", volumesize); 
         }
-        else sprintf(boot_array[boot_index++], "Size: % 8.4fGB    ", volumesize); 
+        else sprintf(boot_disp[boot_index++], "Size: % 8.4fGB    ", volumesize); 
       }
-      else sprintf(boot_array[boot_index++], "Size: % 8.4fMB    ", volumesize); 
+      else sprintf(boot_disp[boot_index++], "Size: % 8.4fMB    ", volumesize); 
     }
-    else sprintf(boot_array[boot_index++], "Size: % 8.4fkB    ", volumesize);
+    else sprintf(boot_disp[boot_index++], "Size: % 8.4fkB    ", volumesize);
   }
   else{
-    strcpy(boot_array[boot_index++], "No FAT16/32 volume! ");
+    strcpy(boot_disp[boot_index++], "No FAT16/32 volume! ");
     warning_count += 1;
   }
   
   //Create directories for saving log files and boot info
   if(!SD.exists(boot_dir)){ //Don't run begin again if it has already been run - known bug in SD.h library: https://arduino.stackexchange.com/questions/3850/sd-begin-fails-second-time
     if(!SD.begin(chipSelect)){
-      strcpy(boot_array[boot_index++], "SD initialize failed");
+      strcpy(boot_disp[boot_index++], "SD initialize failed");
       warning_count += 1;
     }
     if(!SD.exists(boot_dir)){ 
       if(!SD.mkdir(boot_dir)){
-        strcpy(boot_array[boot_index++], "SD.mkdir() failed!  ");
+        strcpy(boot_disp[boot_index++], "SD.mkdir() failed!  ");
         warning_count += 1;
       }
     }
     if(!SD.exists(log_dir)){
       if(!SD.mkdir(log_dir)){
-        strcpy(boot_array[boot_index++], "SD.mkdir() failed!  ");
+        strcpy(boot_disp[boot_index++], "SD.mkdir() failed!  ");
         warning_count += 1;
       }
     }
   }
-  
   //Report number of warning encountered
   if(warning_count){
-    sprintf(boot_array[boot_index++], "% 2d Warnings on boot!", warning_count);
+    sprintf(boot_disp[boot_index++], "% 2d Warnings on boot!", warning_count);
   }
   else{
-    strcpy(boot_array[boot_index++], "Success! 0 Warnings ");
+    strcpy(boot_disp[boot_index++], "Success! 0 Warnings ");
   }
   
   //Save current boot log
   sprintf(current_file_name, "%02d%02d%02d%c%c.txt", year(unix_t)-2000, month(unix_t), day(unix_t), (log_file_count/26)+97, (log_file_count%26)+97); 
-  if(log_file_count++ >= 26*26) log_file_count = 0;
-  boot_saved = saveToSD(boot_dir, current_file_name, (char *) boot_array, boot_index, boot_dim2);
-  if(!boot_saved){
-    strcpy(boot_array[boot_index++], "Boot save FAIL!     ");
+  boot_file_saved = saveToSD(boot_dir, current_file_name, (char *) boot_disp, boot_index, LCD_dim_x);
+  if(!boot_file_saved){
+    strcpy(boot_disp[boot_index++], "Boot save FAIL!     ");
   }
     
   if(Serial){
     for(int a = 0; a<boot_index; a++){
       for(int b=0; b<20; b++){
-        Serial.print(boot_array[a][b]);
+        Serial.print(boot_disp[a][b]);
       }
       Serial.println();
     }
@@ -400,11 +400,14 @@ void initializeDevice(){
     // list all files in the card with date and size
     root.ls(LS_R | LS_DATE | LS_SIZE);
   }
-  strcpy(boot_array[boot_index++], "Use stick to scroll ");
-  strcpy(boot_array[boot_index++], "Press stick to cont.");
+  strcpy(boot_disp[boot_index++], "Use stick to scroll ");
+  strcpy(boot_disp[boot_index++], "Press stick to cont.");
   if(display_present){
     for(int a = 0; a<boot_index-3; a++){
-//      lcd.displayCharArray(boot_array, a, a+1, a+2, a+3);
+      for(int b=0; b<4; b++){
+        lcd.setCursor(0,b);
+        lcd.println(boot_disp[a+b]);        
+      }
       delay(200);
     }
   }
@@ -451,24 +454,30 @@ boolean saveToSD(char (*dir), char (*file_name), char *data_array, int n_lines, 
   int dir_len;
   File f;
 
+  
+
   //Concatenate directory and file name
   while(dir[++i]) file_path[i] = dir[i];
-  file_path[i] = '/';
-  while(file_name[++j]) file_path[++i] = file_name[j];
-  file_path[++i] = 0;
-
-  //Open file
-  f = SD.open(file_path, FILE_WRITE);
-  if(f){
-    for(int a=0; a<n_lines; a++){
-      for(int b=0; b<n_col; b++){
-        data_line[b] = *((data_array + a*n_col) + b);
+  file_path[i] = 0;
+  if(SD.exists(file_path)){ //Make sure that the save directory exists before trying to save to it - without this check open() will lock without SD card  
+    file_path[i] = '/';
+    
+    while(file_name[++j]) file_path[++i] = file_name[j];
+    file_path[++i] = 0;
+    
+    //Open file
+    f = SD.open(file_path, FILE_WRITE);
+    if(f){
+      for(int a=0; a<n_lines; a++){
+        for(int b=0; b<n_col; b++){
+          data_line[b] = *((data_array + a*n_col) + b);
+        }
+        data_line[n_col] = 0; //Force termination at end of string - prevent overlfow issues
+        f.println(data_line);
       }
-      data_line[20] = 0; //Force termination at end of string - prevent overlfow issues
-      f.println(data_line);
+      f.close(); //File timestamp applied on close (save)
+      return true;
     }
-    f.close(); //File timestamp applied on close (save)
-    return true;
   }
   return false;
 }
@@ -515,8 +524,8 @@ void disableDisplay(){
 //Check that LCD is connected and functioning correctly by moving cursor to all DDRAM addresses and confirming that busy flag returns that address
 boolean monitorPresent(){
   uint8_t RAM_offset[] = {0, 0x40, 0x14, 0x54};
-  byte r; //Busy flag response from LCD
-  byte q; //Expected response from LCD
+  uint8_t r; //Busy flag response from LCD
+  uint8_t q; //Expected response from LCD
   //Check all DDRAM addresses and confrim checkBusy returns the same address
   for(int a=0; a<4; a++){
     for(int b=0; b<20; b++){
@@ -526,12 +535,11 @@ boolean monitorPresent(){
       if(r != q) return false;
     }
   }
-  Serial.println("1");
   return true;
 }
 
-//Check if LCD is busy
-byte checkBusy(){
+//Check if LCD is busy and return the DDRAM address
+uint8_t checkBusy(){
   //Set DB pins as input
   for(int a=3; a>=0; a--) pinMode(LCD_pin[a+3], INPUT_PULLUP);
   delayMicroseconds(100); //must wait at least 80us before checking BF - https://www.newhavendisplay.com/app_notes/ST7066U.pdf
@@ -543,7 +551,7 @@ byte checkBusy(){
   delayMicroseconds(100);
   
   //Get flag (DB7) and address counter (DB4-DB6)
-  byte response = 0;
+  uint8_t response = 0;
   for(int a=3; a>=0; a--){
     if(digitalRead(LCD_pin[a+3])) bitSet(response, a+4); //shift 4 MSB bits to MSB position
   }

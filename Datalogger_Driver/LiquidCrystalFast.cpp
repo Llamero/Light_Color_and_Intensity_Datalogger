@@ -391,14 +391,14 @@ void LiquidCrystalFast::send(uint8_t value, uint8_t mode) {
     digitalWrite(_rw_pin, HIGH);
     digitalWrite(_rs_pin, LOW);
     uint8_t busy;
-    uint16_t timer = 10000; //20 ms timeout timer for checking busy flag
+    uint16_t timer = 65535; //66 ms timeout timer for checking busy flag
     do {
       digitalWrite(en, HIGH);
       busy = digitalRead(_data_pins[3]);
       digitalWrite(en, LOW);
       digitalWrite(en, HIGH);
       digitalWrite(en, LOW);
-      delayMicroseconds(2);
+      delayMicroseconds(1);
     } while (busy == HIGH && --timer);
     pinMode(_data_pins[0], OUTPUT);
     pinMode(_data_pins[1], OUTPUT);
