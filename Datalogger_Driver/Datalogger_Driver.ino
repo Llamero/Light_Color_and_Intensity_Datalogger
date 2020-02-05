@@ -2,7 +2,7 @@
 #include "Adafruit_Sensor.h" //Universal sensor API
 #include "Adafruit_TCS34725.h" //Color Sensor
 #include "Adafruit_TSL2591.h" //Light Sensor
-#include "LCD.h" //Display
+#include "LiquidCrystalFast.h" //Display
 #include <Wire.h> //I2C
 #include <TimeLib.h> //Set RTC time and get time strings
 #include <Snooze.h> //Put Teensy into low power state between log points
@@ -36,28 +36,48 @@ SnoozeAlarm  alarm;
 SnoozeBlock hibernate_config(digital, alarm);
 
 //Setup LCD pin numbers and initial parameters
-int DB_pin_array[] = {32, 31, 8, 6, 5, 4, 3, 1}; //List of DB0-DB7 pins to send data to LCD - 4-pin is not fully supported
-boolean four_pin_mode = false; //Whether to run the display in 4-pin mode to free up pins - may not be stable
-int RS_pin = 30;
-int RW_pin = 34;
-int E_pin = 35;
-int LCD_toggle_pin = 24; //Set to high to power on LCD
-int LED_PWM_pin = 29; //Drive LED backlight intensity
-int contrast_pin = A21; //DAC pin for addjusting diplay contrast
-int n_DB_pin = sizeof(DB_pin_array)/sizeof(DB_pin_array[0]);
-int analog_resolution = 16; //Number of bits in PWM and DAC analog  - PWM cap is 16, DAC cap is 12 - auto capped in code - https://www.pjrc.com/teensy/td_pulse.html
-int analog_max = (1<<analog_resolution)-1; //Highest analog value
-int analog_freq = 24000000/(1<<analog_resolution); //Calculate freq based on fastest for minimum clock speed - 24 MHz
-float default_backlight = 1.0; //Set default backlight intensity to full brightness (range is 0-1)
-float default_contrast = 0.5; //Set default LCD contrast to half range (range is 0-1)
-                        
+const uint8_t LCD_pin[] = {30, 34, 35, 5, 4, 3, 1};
+              // LCD pins: RS  RW  EN  D4 D5 D6 D7
+LiquidCrystalFast lcd(LCD_pin[0], LCD_pin[1], LCD_pin[2], LCD_pin[3], LCD_pin[4], LCD_pin[5], LCD_pin[6]); //Only 4-pin supported in LiquidCrystalFast
+const uint8_t LCD_toggle_pin = 24; //Set to high to power on LCD
+const uint8_t LED_PWM_pin = 29; //Drive LED backlight intensity
+const uint8_t contrast_pin = A21; //DAC pin for addjusting diplay contrast
+const uint8_t analog_resolution = 16; //Number of bits in PWM and DAC analog  - PWM cap is 16, DAC cap is 12 - auto capped in code - https://www.pjrc.com/teensy/td_pulse.html
+const uint16_t analog_max = (1<<analog_resolution)-1; //Highest analog value
+const uint32_t analog_freq = 24000000/(1<<analog_resolution); //Calculate freq based on fastest for minimum clock speed - 24 MHz
+const float default_backlight = 1.0; //Set default backlight intensity to full brightness (range is 0-1)
+const float default_contrast = 0.5; //Set default LCD contrast to half range (range is 0-1)
+
+//Define LCD custom characters
+const uint8_t up_arrow[8] = {
+  0b00000,
+  0b00100,
+  0b01110,
+  0b10101,
+  0b00100,
+  0b00100,
+  0b00100,
+  0b00000
+};
+
+const uint8_t down_arrow[8] = {
+  0b00000,
+  0b00100,
+  0b00100,
+  0b00100,
+  0b10101,
+  0b01110,
+  0b00100,
+  0b00000
+};
+
 //Setup sensor pin numbers
-int temp_power_pin = 20; //Set Vcc pins
-int color_power_pin = 23;
-int light_power_pin = 17;
-int color_interrupt_pin = 16; //Set interrupt pins
-int light_interrupt_pin = 33;
-int I2C_pullup_pin = 12; //Pin providing I2C pullup voltage
+const int temp_power_pin = 20; //Set Vcc pins
+const int color_power_pin = 23;
+const int light_power_pin = 17;
+const int color_interrupt_pin = 16; //Set interrupt pins
+const int light_interrupt_pin = 33;
+const int I2C_pullup_pin = 12; //Pin providing I2C pullup voltage
 TwoWire* temp_port = &Wire; //Set I2C (wire) ports
 TwoWire* color_port = &Wire;
 TwoWire* light_port = &Wire1;
@@ -66,10 +86,10 @@ TwoWire* light_port = &Wire1;
 const int joystick_pins[] = {9, 11, 2, 7, 10}; //Joystick pins - up, right, down, left, push 
 
 //Setup battery test pin numbers
-int coin_test_pin = 36;
-int coin_analog_pin = A1;
-int Vin_test_pin = 39;
-int Vin_analog_pin = A0; 
+const int coin_test_pin = 36;
+const int coin_analog_pin = A1;
+const int Vin_test_pin = 39;
+const int Vin_analog_pin = A0; 
 
 //Setup SD card
 const int chipSelect = BUILTIN_SDCARD;
@@ -112,7 +132,7 @@ boolean log_active = false; //Whether the device is actively logging or in stand
 Adafruit_BME280 temp_sensor; //Create instance of temp sensor
 Adafruit_TCS34725 color_sensor = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_700MS, TCS34725_GAIN_60X); //Create instance of color sensor initialize with peak sensitivity
 Adafruit_TSL2591 light_sensor = Adafruit_TSL2591(2591); //Create instance of light sensor - number is sensor ID
-LCD lcd(DB_pin_array, n_DB_pin, RS_pin, RW_pin, E_pin, LCD_toggle_pin, LED_PWM_pin, contrast_pin, analog_resolution); //Create instance of LCD display
+
 
 //------------------------------------------------------------------------------
 // call back for file timestamps - from: https://forum.arduino.cc/index.php?topic=348562.0
@@ -134,7 +154,7 @@ void setup() {
 
 void loop() {
   int wakeup_source;
-  wakeup_source = Snooze.hibernate(hibernate_config);
+  //wakeup_source = Snooze.hibernate(hibernate_config);
   if(wakeup_source < 33){ //If source is <33, then it was a digital pin wakeup - i.e. joystick
     
   }
@@ -150,10 +170,6 @@ void loop() {
   delay(1000);
   digitalWriteFast(LED_BUILTIN, LOW);
   delay(1000); //If log is not active, ignore RTC alarm
-}
-
-void hibernateTeensy(){
-  
 }
 
 void initializeDevice(){
@@ -216,16 +232,13 @@ void initializeDevice(){
   analogWriteResolution(analog_resolution); //Set DAC and PWM resolution - NOTE: Do not change once set!
   analogReadResolution(analog_resolution); //Set ADC resolution - NOTE: Do not change once set!
   analogWriteFrequency(LED_PWM_pin, analog_freq); //Set LED PWM freq - other pins on same timer will also change - https://www.pjrc.com/teensy/td_pulse.html
-  if(four_pin_mode){
-    for(int a=0; a<n_DB_pin; a++){
-      if(a<4) pinMode(DB_pin_array[a], INPUT); //Temporarily set the LSB pins to high impedance so the display can boot into 4-bit mode
-      else DB_pin_array[a-4] = DB_pin_array[a]; //Shift the MSB pins to the LSB slots
-    }
-    lcd = LCD(DB_pin_array, 4, RS_pin, RW_pin, E_pin, LCD_toggle_pin, LED_PWM_pin, contrast_pin, analog_resolution); //Overwrite the LCD instance
-  }
-  lcd.setLCDbacklight(default_backlight); //Turn on LED backlight to default intensity
-  lcd.setLCDcontrast(default_contrast); //Initialize screen contrast to default value
-  if(lcd.initializeLCD()){ //Start LCD display and confirm if present
+  lcd.begin(20, 4); //Initialize LCD
+  lcd.createChar(0, up_arrow); //Create arrow characters
+  lcd.createChar(1, down_arrow);
+  setLCDbacklight(default_backlight); //Turn on LED backlight to default intensity
+  setLCDcontrast(default_contrast); //Initialize screen contrast to default value
+
+  if(monitorPresent()){ //confirm if LCD is present
     strcpy(boot_array[boot_index++], "Display initialized ");
     display_present = true;
     display_on = true;
@@ -391,7 +404,7 @@ void initializeDevice(){
   strcpy(boot_array[boot_index++], "Press stick to cont.");
   if(display_present){
     for(int a = 0; a<boot_index-3; a++){
-      lcd.displayCharArray(boot_array, a, a+1, a+2, a+3);
+//      lcd.displayCharArray(boot_array, a, a+1, a+2, a+3);
       delay(200);
     }
   }
@@ -458,6 +471,89 @@ boolean saveToSD(char (*dir), char (*file_name), char *data_array, int n_lines, 
     return true;
   }
   return false;
+}
+//Adjust LCD contrast
+void setLCDcontrast(float contrast){
+  //Force 0-1 range
+  if(contrast > 1.0){
+    contrast = 1.0;
+  }
+  else if(contrast < 0){
+    contrast = 0;
+  }
+  int bit_contrast = round((1-contrast) * analog_max)>>2; //Values will automatically get mapped to max of 12-bit - https://www.pjrc.com/teensy/td_pulse.html; contrast is also inverted and maxes out at about 1/4 full range
+  
+  analogWrite(contrast_pin, bit_contrast);
+}
+
+//Adjust backlightintensity
+void setLCDbacklight(float intensity){
+  //Force 0-1 range
+  if(intensity > 1.0){
+    intensity = 1.0;
+  }
+  else if(intensity < 0){
+    intensity = 0;
+  }
+  if(intensity > 0){
+    int bit_intensity = round(intensity * analog_max);
+    analogWrite(LED_PWM_pin, bit_intensity);
+  }
+  else{ //Fully shutdown 
+    digitalWrite(LED_PWM_pin, LOW);
+  }
+}
+
+//Fully shutdown display into lowest power state
+void disableDisplay(){
+  digitalWriteFast(LCD_toggle_pin, LOW); //Turn off LCD power
+  digitalWriteFast(LED_PWM_pin, LOW); //Turn off backlight
+  analogWrite(contrast_pin, 0); //Turn off LCD contrast
+  DAC0_C0 = (unsigned char) ~DAC_C0_DACEN; //Disable DAC pin DAC0 to save power on hibernate - https://github.com/duff2013/Snooze/issues/12 - unsigned char to fix warning - https://www.avrfreaks.net/forum/warning-large-integer-implicitly-truncated-unsigned-type
+}
+
+//Check that LCD is connected and functioning correctly by moving cursor to all DDRAM addresses and confirming that busy flag returns that address
+boolean monitorPresent(){
+  uint8_t RAM_offset[] = {0, 0x40, 0x14, 0x54};
+  byte r; //Busy flag response from LCD
+  byte q; //Expected response from LCD
+  //Check all DDRAM addresses and confrim checkBusy returns the same address
+  for(int a=0; a<4; a++){
+    for(int b=0; b<20; b++){
+      lcd.setCursor(b,a);
+      r = checkBusy(); 
+      q = ((b+RAM_offset[a]) & 0xF0);
+      if(r != q) return false;
+    }
+  }
+  Serial.println("1");
+  return true;
+}
+
+//Check if LCD is busy
+byte checkBusy(){
+  //Set DB pins as input
+  for(int a=3; a>=0; a--) pinMode(LCD_pin[a+3], INPUT_PULLUP);
+  delayMicroseconds(100); //must wait at least 80us before checking BF - https://www.newhavendisplay.com/app_notes/ST7066U.pdf
+  
+  //Send command to get busy flag
+  digitalWriteFast(LCD_pin[0], LOW); //Send instruction
+  digitalWriteFast(LCD_pin[1], HIGH); //Read
+  digitalWriteFast(LCD_pin[2], HIGH); //Enable BF
+  delayMicroseconds(100);
+  
+  //Get flag (DB7) and address counter (DB4-DB6)
+  byte response = 0;
+  for(int a=3; a>=0; a--){
+    if(digitalRead(LCD_pin[a+3])) bitSet(response, a+4); //shift 4 MSB bits to MSB position
+  }
+  digitalWriteFast(LCD_pin[2], LOW); //Reset BF
+  delayMicroseconds(2);
+  digitalWriteFast(LCD_pin[2], HIGH); //Enable BF
+  delayMicroseconds(100);
+  digitalWriteFast(LCD_pin[2], LOW); //Reset BF
+  for(int a=3; a>=0; a--) pinMode(LCD_pin[a+3], OUTPUT);
+  return response;
 }
 
 void wakeUSB(){
