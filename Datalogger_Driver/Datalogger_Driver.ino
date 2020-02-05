@@ -10,7 +10,7 @@
 
 //Setup default parameters
 uint16_t n_logs_per_file = 10000; //The number of logs to save to a file before creating a new low file
-int log_interval[] = {0, 0, 1}; //Number of hours, minutes, and seconds between log intervals
+int log_interval[] = {0, 0, 10}; //Number of hours, minutes, and seconds between log intervals
 const char boot_dir[] = "boot_log"; //Directory to save boot log files into - max length 8 char
 const char log_dir[] = "data_log"; //Directory to save data log files into - max length 8 char
 boolean measure_temp = true;
@@ -81,7 +81,7 @@ TwoWire* light_port = &Wire1;
 
 //Setup joystick pins
 const uint8_t joystick_pins[] = {9, 11, 2, 7, 10}; //Joystick pins - up, right, down, left, push 
-
+                              //u,  r,  d, l, center 
 //Setup battery test pin numbers
 const uint8_t coin_test_pin = 36;
 const uint8_t coin_analog_pin = A1;
@@ -113,7 +113,7 @@ const uint8_t boot_dim_y = 20; //Number of rows (total lines)
 const uint8_t LCD_dim_x = 21; //Number of columns (characters per line) - add one character for null character to delineate strings
 char boot_disp[boot_dim_y][LCD_dim_x]; //Array for boot display
 const uint8_t log_disp_dim_y = 14; //Number of rows (total lines)
-char log_disp[log_disp_dim_y][LCD_dim_x] = {"Log Status:         ","Date:               ","Time:               ","Temp(\xDF""C):           ","Pres(hPa):          ","Humidity(%):        ","lux:                ","Red(µW):            ","Green(µW):          ","Blue(µW):           ","Clear(uW):          ","Vin:                ","Vbat:               ","Comment:            "};
+char log_disp[log_disp_dim_y][LCD_dim_x] = {"Log Status:         ","Date:               ","Time:               ","Temp(\xDF""C):           ","Pres(hPa):          ","Humidity(%):        ","lux:                ","Red(\xE4""W):            ","Green(\xE4""W):          ","Blue(\xE4""W):           ","Clear(\xE4""W):          ","Vin(V):             ","Vbat(V):            ","Comment:            "};
 const uint8_t settings_dim_y = 23; //Number of rows (total lines)
 char settings_disp[settings_dim_y][LCD_dim_x] = {"Settings:           ","-------SENSORS------","Temperature:        ","Humidity:           ","Pressure:           ","Lux:                ","Color:              ","Battery:            ","----LOG INTERVAL----", "Seconds:            ","Minutes:            ","Hours:              ","----LCD SETTINGS----","Contrast:           ","Backlight:          ","Disable on log:     ","----LOG INTERVAL----", "Seconds:            ","Minutes:            ","Hours:              ","----RTC SETTINGS----","Date:               ","Time:               "};
 const uint8_t n_windows = 3;
@@ -161,13 +161,14 @@ void setup() {
 
 void loop() {
   uint8_t wakeup_source;
-  if(!(++counter%6)) a=!a;
-  if(a) wakeupEvent(joystick_pins[1]);
-  else wakeupEvent(joystick_pins[3]);
+//  if(!(++counter%6)) a=!a;
+//  if(a) wakeupEvent(joystick_pins[1]);
+//  else wakeupEvent(joystick_pins[3]);
   
 //  if(LCD_line_index == LCD_window_lines[LCD_window_index]-4) a = false;
 //  if(!LCD_line_index) a = true;
-//  //wakeup_source = Snooze.hibernate(hibernate_config);
+  wakeup_source = Snooze.hibernate(hibernate_config);
+  wakeupEvent(wakeup_source);
 //  if(a) wakeupEvent(joystick_pins[2]);
 //  else wakeupEvent(joystick_pins[0]);
   digitalWriteFast(LED_BUILTIN, HIGH);
