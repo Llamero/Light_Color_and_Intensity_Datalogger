@@ -398,7 +398,7 @@ void LiquidCrystalFast::send(uint8_t value, uint8_t mode) {
       digitalWrite(en, LOW);
       digitalWrite(en, HIGH);
       digitalWrite(en, LOW);
-      delayMicroseconds(1);
+      delayMicroseconds(2);
     } while (busy == HIGH && --timer);
     pinMode(_data_pins[0], OUTPUT);
     pinMode(_data_pins[1], OUTPUT);

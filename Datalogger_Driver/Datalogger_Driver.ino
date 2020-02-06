@@ -32,7 +32,11 @@ const float default_contrast = 0.5; //Set default LCD contrast to half range (ra
 // Load drivers
 SnoozeDigital digital;
 SnoozeAlarm  alarm;
-SnoozeBlock hibernate_config(digital, alarm);
+SnoozeTimer timer; //Maximum time is 65.535 s
+SnoozeBlock hibernate_config(digital, timer, alarm);
+time_t unix_t = 0; //Track current device time
+time_t alarm_interval =  (log_interval[0]*3600) + (log_interval[1]*60 ) + log_interval[2]; //Time in seconds between alarms
+time_t next_alarm = 0; //When next wake event is, incremented by alarm interval
 
 //Setup LCD pin numbers and initial parameters
 const uint8_t LCD_pin[] = {30, 34, 35, 5, 4, 3, 1}; //Only 4-pin supported in LiquidCrystalFast
@@ -82,6 +86,8 @@ TwoWire* light_port = &Wire1;
 //Setup joystick pins
 const uint8_t joystick_pins[] = {9, 11, 2, 7, 10}; //Joystick pins - up, right, down, left, push 
                               //u,  r,  d, l, center 
+const uint8_t debounce = 50; //Time in ms to debounce button press
+
 //Setup battery test pin numbers
 const uint8_t coin_test_pin = 36;
 const uint8_t coin_analog_pin = A1;
@@ -114,8 +120,8 @@ const uint8_t LCD_dim_x = 21; //Number of columns (characters per line) - add on
 char boot_disp[boot_dim_y][LCD_dim_x]; //Array for boot display
 const uint8_t log_disp_dim_y = 14; //Number of rows (total lines)
 char log_disp[log_disp_dim_y][LCD_dim_x] = {"Log Status:         ","Date:               ","Time:               ","Temp(\xDF""C):           ","Pres(hPa):          ","Humidity(%):        ","lux:                ","Red(\xE4""W):            ","Green(\xE4""W):          ","Blue(\xE4""W):           ","Clear(\xE4""W):          ","Vin(V):             ","Vbat(V):            ","Comment:            "};
-const uint8_t settings_dim_y = 23; //Number of rows (total lines)
-char settings_disp[settings_dim_y][LCD_dim_x] = {"Settings:           ","-------SENSORS------","Temperature:        ","Humidity:           ","Pressure:           ","Lux:                ","Color:              ","Battery:            ","----LOG INTERVAL----", "Seconds:            ","Minutes:            ","Hours:              ","----LCD SETTINGS----","Contrast:           ","Backlight:          ","Disable on log:     ","----LOG INTERVAL----", "Seconds:            ","Minutes:            ","Hours:              ","----RTC SETTINGS----","Date:               ","Time:               "};
+const uint8_t settings_dim_y = 17; //Number of rows (total lines)
+char settings_disp[settings_dim_y][LCD_dim_x] = {"Settings:           ","-------SENSORS------","Temperature:        ","Humidity:           ","Pressure:           ","Lux:                ","Color:              ","Battery:            ","----LOG INTERVAL----", "(hh:mm:ss):         ","----LCD SETTINGS----","Contrast:           ","Backlight:          ","Disable on log:     ","----RTC SETTINGS----","Date:               ","Time:               "};
 const uint8_t n_windows = 3;
 char *LCD_windows[] = {(char *) boot_disp, (char *) log_disp, (char *) settings_disp}; //Array of windows available for LCD
 uint8_t LCD_window_index = 0; //Current LCD window being displayed
@@ -151,12 +157,13 @@ void dateTime(uint16_t* date, uint16_t* time) {
 }
 //------------------------------------------------------------------------------
 
-time_t unix_t = 0;
+
 float contrast = 0;
 boolean a;
 uint8_t counter = 0;
 void setup() {
   initializeDevice();
+  next_alarm = now();
 }
 
 void loop() {
@@ -167,8 +174,12 @@ void loop() {
   
 //  if(LCD_line_index == LCD_window_lines[LCD_window_index]-4) a = false;
 //  if(!LCD_line_index) a = true;
-//  wakeup_source = Snooze.hibernate(hibernate_config);
-//  wakeupEvent(wakeup_source);
+  //If an initial alarm time has been set, increment alarm time
+  if(next_alarm) next_alarm += alarm_interval;
+  alarm.setAlarm(next_alarm);
+  wakeup_source = Snooze.hibernate(hibernate_config);
+  delay(debounce);
+  wakeupEvent(wakeup_source);
 //  if(a) wakeupEvent(joystick_pins[2]);
 //  else wakeupEvent(joystick_pins[0]);
   digitalWriteFast(LED_BUILTIN, HIGH);
@@ -188,11 +199,23 @@ void wakeupEvent(uint8_t src){
     }
   }
   else if(src == joystick_pins[4]){
-    //centerPress();
+    centerPress(src);
   }
   else{
     //logDataPoint();
   }
+  
+  //If wake event was button press, wait for button release
+  if(src <= 33) while(!digitalRead(src));
+  delay(debounce);
+}
+
+void centerPress(uint8_t src){
+  //If center-press is held for more than 5 senconds, toggle log
+  uint8_t timer = 255;
+  while(timer-- && !digitalRead(src));
+  
+  
 }
 
 //Use the up and down buttons to vertically scroll through the current window
@@ -261,6 +284,15 @@ void cycleWindow(uint8_t src){
   }
   lcd.setCursor(LCD_dim_x-2, 3);
   lcd.write(1);
+
+  //Turn on cursor for settings window
+  if(LCD_window_index == n_windows-1){
+    lcd.setCursor(0, 0);
+    lcd.cursor();
+  }
+  else{
+    lcd.noCursor();
+  }
 }
 
 //Check all components and write boot log
@@ -275,11 +307,8 @@ void initializeDevice(){
 
   //Initialize joystick pins - map to digital wake from hibernate
   for(int a = 0; a<5; a++){
-    digital.pinMode(joystick_pins[a], INPUT_PULLUP, RISING);
+    digital.pinMode(joystick_pins[a], INPUT_PULLUP, FALLING);
   }
-
-  //Initialize RTC timer wake from hibernate
-  alarm.setRtcTimer(log_interval[0], log_interval[1], log_interval[2]);
   
   //Power on the sensors
   pinMode(temp_power_pin, OUTPUT);
