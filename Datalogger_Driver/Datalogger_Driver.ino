@@ -10,7 +10,7 @@
 
 //Setup default parameters
 uint16_t n_logs_per_file = 10000; //The number of logs to save to a file before creating a new low file
-int log_interval[] = {0, 0, 10}; //Number of hours, minutes, and seconds between log intervals
+int log_interval[] = {0, 0, 2}; //Number of hours, minutes, and seconds between log intervals
 const char boot_dir[] = "boot_log"; //Directory to save boot log files into - max length 8 char
 const char log_dir[] = "data_log"; //Directory to save data log files into - max length 8 char
 boolean measure_temp = true;
@@ -20,7 +20,7 @@ boolean measure_lux = true;
 boolean measure_color = true;
 boolean measure_battery = true;
 
-boolean disable_display_on_log = false; //Completely power down display during logging
+boolean disable_display_on_log = true; //Completely power down display during logging
 const float default_backlight = 1.0; //Set default backlight intensity to full brightness (range is 0-1)
 const float default_contrast = 0.5; //Set default LCD contrast to half range (range is 0-1)
 
@@ -32,8 +32,7 @@ const float default_contrast = 0.5; //Set default LCD contrast to half range (ra
 // Load drivers
 SnoozeDigital digital;
 SnoozeAlarm  alarm;
-SnoozeTimer timer; //Maximum time is 65.535 s
-SnoozeBlock hibernate_config(digital, timer, alarm);
+SnoozeBlock hibernate_config(digital, alarm);
 time_t unix_t = 0; //Track current device time
 time_t alarm_interval =  (log_interval[0]*3600) + (log_interval[1]*60 ) + log_interval[2]; //Time in seconds between alarms
 time_t next_alarm = 0; //When next wake event is, incremented by alarm interval
@@ -41,7 +40,7 @@ time_t next_alarm = 0; //When next wake event is, incremented by alarm interval
 //Setup LCD pin numbers and initial parameters
 const uint8_t LCD_pin[] = {30, 34, 35, 5, 4, 3, 1}; //Only 4-pin supported in LiquidCrystalFast
               // LCD pins: RS  RW  EN  D4 D5 D6 D7
-LiquidCrystalFast lcd(LCD_pin[0], LCD_pin[1], LCD_pin[2], LCD_pin[3], LCD_pin[4], LCD_pin[5], LCD_pin[6]); 
+LiquidCrystalFast lcd(LCD_pin[0], LCD_pin[1], LCD_pin[2], LCD_pin[3], LCD_pin[4], LCD_pin[5], LCD_pin[6]);
 const uint8_t LCD_toggle_pin = 24; //Set to high to power on LCD
 const uint8_t LED_PWM_pin = 29; //Drive LED backlight intensity
 const uint8_t contrast_pin = A21; //DAC pin for addjusting diplay contrast
@@ -49,7 +48,7 @@ const uint8_t analog_resolution = 16; //Number of bits in PWM and DAC analog  - 
 const uint16_t analog_max = (1<<analog_resolution)-1; //Highest analog value
 const uint32_t analog_freq = 24000000/(1<<analog_resolution); //Calculate freq based on fastest for minimum clock speed - 24 MHz
 
-//Define LCD custom characters
+//Define LCD custom characters - from https://www.instructables.com/id/Custom-Large-Font-For-16x2-LCDs/
 const uint8_t up_arrow[8] = {
   0b00000,
   0b00100,
@@ -71,6 +70,173 @@ const uint8_t down_arrow[8] = {
   0b00100,
   0b00000
 };
+
+
+const uint8_t  gBigFontShapeTable[]  = {
+//* LT[8] =
+  B00111,
+  B01111,
+  B11111,
+  B11111,
+  B11111,
+  B11111,
+  B11111,
+  B11111,
+//* UB[8] =
+  B11111,
+  B11111,
+  B11111,
+  B00000,
+  B00000,
+  B00000,
+  B00000,
+  B00000,
+//* RT[8] =
+  B11100,
+  B11110,
+  B11111,
+  B11111,
+  B11111,
+  B11111,
+  B11111,
+  B11111,
+//* LL[8] =
+  B11111,
+  B11111,
+  B11111,
+  B11111,
+  B11111,
+  B11111,
+  B01111,
+  B00111,
+//* LB[8] =
+  B00000,
+  B00000,
+  B00000,
+  B00000,
+  B00000,
+  B11111,
+  B11111,
+  B11111,
+//* LR[8] =
+  B11111,
+  B11111,
+  B11111,
+  B11111,
+  B11111,
+  B11111,
+  B11110,
+  B11100,
+//* UMB[8] =
+  B11111,
+  B11111,
+  B11111,
+  B00000,
+  B00000,
+  B00000,
+  B11111,
+  B11111,
+//* LMB[8] =
+  B11111,
+  B00000,
+  B00000,
+  B00000,
+  B00000,
+  B11111,
+  B11111,
+  B11111
+
+
+};
+
+
+//************************************************************************
+//* 6 numbers for each character
+//* 9 means BLANK
+const uint8_t gBigFontAsciiTable[]  = {
+
+  32, 32, 32, 32, 32, 32,   //  0x20  space
+  32, 0,  32, 32, 4,  32,   //  0x21  !
+  32, 32, 32, 32, 32, 32,   //  0x22
+  32, 32, 32, 32, 32, 32,   //  0x23
+  32, 32, 32, 32, 32, 32,   //  0x24
+  32, 32, 32, 32, 32, 32,   //  0x25
+  32, 32, 32, 32, 32, 32,   //  0x26
+  32, 32, 32, 32, 32, 32,   //  0x27
+  32, 32, 32, 32, 32, 32,   //  0x28
+  32, 32, 32, 32, 32, 32,   //  0x29
+  32, 32, 32, 32, 32, 32,   //  0x2A
+  32, 32, 32, 32, 32, 32,   //  0x2B
+  32, 32, 32, 32, 32, 32,   //  0x2C
+  32, 32, 32, 32, 32, 32,   //  0x2D
+  32, 32, 32, 32, 4,  32,   //  0x2E  . (period)
+  32, 32, 32, 32, 32, 32,   //  0x2F
+
+
+  0,  1,  2,  3,  4,  5,    //  0x30  0
+  1,  2,  32, 32, 5,  32,   //  0x31  1
+  6,  6,  2,  3,  7,  7,    //  0x32  2
+  6,  6,  2,  7,  7,  5,    //  0x33  3
+  3,  4,  2,  32, 32, 5,    //  0x34  4
+  255,6,  6,  7,  7,  5,    //  0x35  5
+//  0,  6,  6,  7,  7,  5,    //  0x35  5
+  0,  6,  6,  3,  7,  5,    //  0x36  6
+  1,  1,  2,  32, 0,  32,   //  0x37  7
+  0,  6,  2,  3,  7,  5,    //  0x38  8
+  0,  6,  2,  32, 32, 5,    //  0x39  9
+  32, 32, 32, 32, 32, 32,   //  0x3A
+  32, 32, 32, 32, 32, 32,   //  0x3B
+  32, 32, 32, 32, 32, 32,   //  0x3C
+  32, 32, 32, 32, 32, 32,   //  0x3D
+  32, 32, 32, 32, 32, 32,   //  0x3E
+  1,  6,  2,  254,7,  32,   //  0x3F  ?
+
+  32, 32, 32, 32, 32, 32,   //  0x40  @
+  0,  6,  2,  255,254,255,  //  0x41  A
+  255,6,  5,  255,7,  2,    //  0x42  B
+  0,  1,  1,  3,  4,  4,    //  0x43  C
+  255,1,  2,  255,4,  5,    //  0x44  D
+  255,6,  6,  255,7,  7,    //  0x45  E
+  255,6,  6,  255,32, 32,   //  0x46  F
+
+  0,  1,  1,  3,  4,  2,    //  0x47  G
+  255,4,  255,255,254,255,  //  0x48  H
+  1,  255,1,  4,  255,4,    //  0x49  I
+  32, 32, 255,4,  4,  5,    //  0x4A  J
+  255,4,  5,  255,254,2,    //  0x4B  K
+  255,32, 32, 255,4,  4,    //  0x4C  L
+  32, 32, 32, 32, 32, 32,   //  0x4D  M place holder
+  32, 32, 32, 32, 32, 32,   //  0x4E  N place holder
+  0,  1,  2,  3,  4,  5,    //  0x4F  O (same as zero)
+
+  0,  6,  2,  3,  32, 32,   //  0x50  P
+  32, 32, 32, 32, 32, 32,   //  0x51  Q
+  0,  6,  5,  3,  32, 2,    //  0x52  R
+  0,  6,  6,  7,  7,  5,    //  0x35  S (same as 5)
+  1,  2,  1,  32, 5,  32,   //  0x54  T
+  2,  32, 2,  3,  4,  5,    //  0x55  U
+  32, 32, 32, 32, 32, 32,   //  0x56  V place holder
+  32, 32, 32, 32, 32, 32,   //  0x57  W place holder
+  3,  4,  5,  0,  32, 2,    //  0x58  X
+  3,  4,  5,  32, 5,  32,   //  0x59  Y
+  1,  6,  5,  0,  7,  4,    //  0x5A  Z
+  0
+
+};
+
+//* we have a seperate table for the wide routines
+const uint8_t gBigFontAsciiTableWide[]  = {
+//* this table is 10 bytes, 2 rows of 5
+//  ---top------------|
+  0,  1,  3,  1,  2,  3,  32, 32, 32, 5,    //  0x4D  M   5-wide
+  0,  3,  32, 2,  32, 3,  32, 2,  5,  32,   //  0x4E  N   4-wide
+  0,  1,  2,  32, 32, 3,  4,  3,  4,  32,   //  0x51  Q   4-wide
+  3,  32, 32, 5,  32, 32, 3,  5,  32, 32,   //  0x56  V   4-wide
+  0,  32, 32, 32, 2,  3,  4,  0,  4,  5,    //  0x57  W   5-wide
+  0
+};
+
+
 
 //Setup sensor pin numbers
 const uint8_t temp_power_pin = 20; //Set Vcc pins
@@ -145,7 +311,6 @@ Adafruit_BME280 temp_sensor; //Create instance of temp sensor
 Adafruit_TCS34725 color_sensor = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_700MS, TCS34725_GAIN_60X); //Create instance of color sensor initialize with peak sensitivity
 Adafruit_TSL2591 light_sensor = Adafruit_TSL2591(2591); //Create instance of light sensor - number is sensor ID
 
-
 //------------------------------------------------------------------------------
 // call back for file timestamps - from: https://forum.arduino.cc/index.php?topic=348562.0
 void dateTime(uint16_t* date, uint16_t* time) {
@@ -163,33 +328,23 @@ boolean a;
 uint8_t counter = 0;
 void setup() {
   initializeDevice();
-  next_alarm = now();
 }
 
 void loop() {
   uint8_t wakeup_source;
-//  if(!(++counter%6)) a=!a;
-//  if(a) wakeupEvent(joystick_pins[1]);
-//  else wakeupEvent(joystick_pins[3]);
   
-//  if(LCD_line_index == LCD_window_lines[LCD_window_index]-4) a = false;
-//  if(!LCD_line_index) a = true;
   //If an initial alarm time has been set, increment alarm time
   if(next_alarm) next_alarm += alarm_interval;
   alarm.setAlarm(next_alarm);
   wakeup_source = Snooze.hibernate(hibernate_config);
   delay(debounce);
   wakeupEvent(wakeup_source);
-//  if(a) wakeupEvent(joystick_pins[2]);
-//  else wakeupEvent(joystick_pins[0]);
-  digitalWriteFast(LED_BUILTIN, HIGH);
-  delay(500);
-  digitalWriteFast(LED_BUILTIN, LOW);
-  delay(500); //If log is not active, ignore RTC alarm
 }
 
 void wakeupEvent(uint8_t src){
+  Serial.println(src);
   //joystick_pins[] = {9, 11, 2, 7, 10}; //Joystick pins - up, right, down, left, push 
+  pinMode(src, INPUT_PULLUP); //Set pin to state where it can be queried
   if(display_present){ //Lateral joystick inputs are only valid if there is a display
     if(src == joystick_pins[0] || src == joystick_pins[2]){
       scrollWindow(src);
@@ -198,24 +353,82 @@ void wakeupEvent(uint8_t src){
       cycleWindow(src);
     }
   }
-  else if(src == joystick_pins[4]){
+  if(src == joystick_pins[4]){
     centerPress(src);
   }
-  else{
-    //logDataPoint();
+  else if(src > 33){ //If > 33 then trigger was a non-digital event such as RTC timer
+    //logEvent();
   }
   
   //If wake event was button press, wait for button release
-  if(src <= 33) while(!digitalRead(src));
+  if(src <= 33){
+    while(!digitalRead(src));
+  }
   delay(debounce);
 }
 
 void centerPress(uint8_t src){
   //If center-press is held for more than 5 senconds, toggle log
-  uint8_t timer = 255;
-  while(timer-- && !digitalRead(src));
-  
-  
+  char timer = '5';
+  char line1[] = "START";
+  char line2[] = "LOG";
+  uint8_t index = 0;
+  uint8_t col = 0;
+  if(log_active) strcpy(line1, "STOP ");
+  BigNumber_SendCustomChars(); //Export double line char table - https://www.instructables.com/id/Custom-Large-Font-For-16x2-LCDs/
+  if(disable_display_on_log && log_active) disableDisplay(false);
+
+  while(timer > '0' && !digitalRead(src)){
+    lcd.clear();
+    index = 0;
+    col = 0;  
+    while(line1[index]) col += DrawBigChar(col, 0, line1[index++]);
+    index = 0;
+    col = 0;
+    while(line2[index]) col += DrawBigChar(col, 2, line2[index++]);
+    DrawBigChar(15, 2, timer--);
+    delay(1000);
+  }
+  if(timer == '0'){
+    log_active = !log_active;
+    if(!display_present){ //If there is not a display - show one LED flash for log start and two LED flashes for log stop
+      digitalWriteFast(LED_BUILTIN, HIGH);
+      delay(1000);
+      digitalWriteFast(LED_BUILTIN, LOW);
+      if(!log_active){
+        delay(1000); //If log is not active, ignore RTC alarm
+        digitalWriteFast(LED_BUILTIN, HIGH);
+        delay(1000);
+        digitalWriteFast(LED_BUILTIN, LOW);
+      }
+    }    
+    toggleLog();
+  }
+  else{
+    if(disable_display_on_log && log_active) disableDisplay(true);
+    if(!log_active) scrollWindow(src); 
+  }
+
+  //Restore arrow chars for menu scrolling
+  lcd.createChar(0, up_arrow); //Create arrow characters
+  lcd.createChar(1, down_arrow); 
+}
+
+//Handles starting and stopping logs
+void toggleLog(){
+  if(log_active){
+    if(disable_display_on_log) disableDisplay(true);
+    logEvent();
+  }
+  else{
+    next_alarm = 0; //Deactivate RTC wake from sleep
+    scrollWindow(joystick_pins[4]); //Restore display
+  }
+}
+
+void logEvent(){
+  next_alarm = now(); 
+  Serial.println("Logging active");
 }
 
 //Use the up and down buttons to vertically scroll through the current window
@@ -227,11 +440,12 @@ void scrollWindow(uint8_t src){
     if(!LCD_line_index) return; //If already at the top, do nothing
     else LCD_line_index--;
   }
-  else{ //If down press, scroll window down
+  else if(src == joystick_pins[2]){ //If down press, scroll window down
     if(LCD_line_index == LCD_window_lines[LCD_window_index]-4) return; //If already at the bottom, do nothing
     else LCD_line_index++; 
   }
-
+  else; //Otherwise, don't change anything and reprint window
+    
   //Retrieve and print corresponding strings
   for(int a=LCD_line_index; a<LCD_line_index+4; a++){
     for(int b=0; b<LCD_dim_x; b++){
@@ -373,7 +587,7 @@ void initializeDevice(){
   else{
     strcpy(boot_disp[boot_index++], "Display not found!  ");
     warning_count += 1;
-    disableDisplay();
+    disableDisplay(true);
     display_present = false;
     display_on = false;
     backlight_on = false;
@@ -655,11 +869,21 @@ void setLCDbacklight(float intensity){
 }
 
 //Fully shutdown display into lowest power state
-void disableDisplay(){
-  digitalWriteFast(LCD_toggle_pin, LOW); //Turn off LCD power
-  digitalWriteFast(LED_PWM_pin, LOW); //Turn off backlight
-  analogWrite(contrast_pin, 0); //Turn off LCD contrast
-  DAC0_C0 = (unsigned char) ~DAC_C0_DACEN; //Disable DAC pin DAC0 to save power on hibernate - https://github.com/duff2013/Snooze/issues/12 - unsigned char to fix warning - https://www.avrfreaks.net/forum/warning-large-integer-implicitly-truncated-unsigned-type
+void disableDisplay(boolean disable){
+  if(disable){
+    digitalWriteFast(LCD_toggle_pin, LOW); //Turn off LCD power
+    digitalWriteFast(LED_PWM_pin, LOW); //Turn off backlight
+    analogWrite(contrast_pin, 0); //Turn off LCD contrast
+    DAC0_C0 = (unsigned char) ~DAC_C0_DACEN; //Disable DAC pin DAC0 to save power on hibernate - https://github.com/duff2013/Snooze/issues/12 - unsigned char to fix warning - https://www.avrfreaks.net/forum/warning-large-integer-implicitly-truncated-unsigned-type
+  }
+  else{ 
+    DAC0_C0 = (unsigned char) DAC_C0_DACEN; //Disable DAC pin DAC0 to save power on hibernate - https://github.com/duff2013/Snooze/issues/12 - unsigned char to fix warning - https://www.avrfreaks.net/forum/warning-large-integer-implicitly-truncated-unsigned-type
+    digitalWriteFast(LCD_toggle_pin, HIGH); //Turn off LCD power
+    delay(100);
+    lcd.begin(20, 4); //Initialize LCD
+    setLCDbacklight(default_backlight); //Turn on LED backlight to default intensity
+    setLCDcontrast(default_contrast); //Initialize screen contrast to default value
+  }
 }
 
 //Check that LCD is connected and functioning correctly by moving cursor to all DDRAM addresses and confirming that busy flag returns that address
@@ -707,7 +931,7 @@ uint8_t checkBusy(){
 
 void wakeUSB(){
     elapsedMillis time = 0;
-    while (!Serial && time < 1000) {
+    while (!Serial && time < 2000) {
         Serial.write(0x00);// print out a bunch of NULLS to serial monitor
         digitalWriteFast(LED_BUILTIN, HIGH);
         delay(30);
@@ -716,4 +940,97 @@ void wakeUSB(){
     }
     // normal delay for Arduino Serial Monitor
     delay(200);
+}
+
+//************************************************************************
+static void  BigNumber_SendCustomChars(void)
+{
+uint8_t customCharDef[10];
+uint8_t ii;
+int   jj;
+
+  for (ii=0; ii<8; ii++)
+  {
+    for (jj=0; jj<8; jj++)
+    {
+      customCharDef[jj] = pgm_read_byte_near(gBigFontShapeTable + (ii * 8) + jj);
+    }
+    lcd.createChar(ii, customCharDef);
+  }
+}
+
+//************************************************************************
+//* returns the width of the character
+static int  DrawBigChar(int xLocation, int yLocation, char theChar)
+{
+int   offset;
+int   ii;
+char  theByte;
+boolean specialCase;
+int   specialIndex;
+int   charWidth;
+
+  if (theChar == 0x20)
+  {
+    return(2);
+  }
+  else if (theChar < 0x20)
+  {
+    return(0);
+  }
+
+  if (theChar >= 'A')
+  {
+    theChar = theChar & 0x5F; //* force to upper case
+  }
+  specialCase = true;
+  switch (theChar)
+  {
+    case 'M': charWidth = 5;  specialIndex  = 0;  break;
+    case 'N': charWidth = 4;  specialIndex  = 1;  break;
+    case 'Q': charWidth = 4;  specialIndex  = 2;  break;
+    case 'V': charWidth = 4;  specialIndex  = 3;  break;
+    case 'W': charWidth = 5;  specialIndex  = 4;  break;
+
+
+    default:
+      charWidth = 3;
+      specialCase = false;
+      offset    = 6 * (theChar - 0x20);
+      lcd.setCursor(xLocation, yLocation);
+      for (ii=0; ii<3; ii++)
+      {
+        theByte = pgm_read_byte_near(gBigFontAsciiTable + offset + ii);
+        lcd.write(theByte);
+      }
+
+      lcd.setCursor(xLocation, yLocation + 1);
+      offset  +=  3;
+      for (ii=0; ii<3; ii++)
+      {
+        theByte = pgm_read_byte_near(gBigFontAsciiTable + offset + ii);
+        lcd.write(theByte);
+      }
+      break;
+  }
+  if (specialCase)
+  {
+    //*
+    offset    = 10 * specialIndex;
+    lcd.setCursor(xLocation, yLocation);
+    for (ii=0; ii<charWidth; ii++)
+    {
+      theByte = pgm_read_byte_near(gBigFontAsciiTableWide + offset + ii);
+      lcd.write(theByte);
+    }
+
+    lcd.setCursor(xLocation, yLocation + 1);
+    offset  +=  5;
+    for (ii=0; ii<charWidth; ii++)
+    {
+      theByte = pgm_read_byte_near(gBigFontAsciiTableWide + offset + ii);
+      lcd.write(theByte);
+    }
+  }
+  return(charWidth + 1);
 }
