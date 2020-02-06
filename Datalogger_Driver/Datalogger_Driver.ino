@@ -10,7 +10,7 @@
 
 //Setup default parameters
 uint16_t n_logs_per_file = 10000; //The number of logs to save to a file before creating a new low file
-int log_interval[] = {0, 0, 2}; //Number of hours, minutes, and seconds between log intervals
+int log_interval[] = {0, 0, 5}; //Number of hours, minutes, and seconds between log intervals
 const char boot_dir[] = "boot_log"; //Directory to save boot log files into - max length 8 char
 const char log_dir[] = "data_log"; //Directory to save data log files into - max length 8 char
 boolean measure_temp = true;
@@ -32,10 +32,9 @@ const float default_contrast = 0.5; //Set default LCD contrast to half range (ra
 // Load drivers
 SnoozeDigital digital;
 SnoozeAlarm  alarm;
-SnoozeBlock hibernate_config(digital, alarm);
+SnoozeTimer timer;
+SnoozeBlock hibernate_config(digital, timer);
 time_t unix_t = 0; //Track current device time
-time_t alarm_interval =  (log_interval[0]*3600) + (log_interval[1]*60 ) + log_interval[2]; //Time in seconds between alarms
-time_t next_alarm = 0; //When next wake event is, incremented by alarm interval
 
 //Setup LCD pin numbers and initial parameters
 const uint8_t LCD_pin[] = {30, 34, 35, 5, 4, 3, 1}; //Only 4-pin supported in LiquidCrystalFast
@@ -328,21 +327,21 @@ boolean a;
 uint8_t counter = 0;
 void setup() {
   initializeDevice();
+  timer.setTimer(5000);// milliseconds
 }
 
 void loop() {
-  uint8_t wakeup_source;
-  
+  uint8_t wakeup_source = 0;
   //If an initial alarm time has been set, increment alarm time
-  if(next_alarm) next_alarm += alarm_interval;
-  alarm.setAlarm(next_alarm);
   wakeup_source = Snooze.hibernate(hibernate_config);
   delay(debounce);
   wakeupEvent(wakeup_source);
+  digitalWriteFast(LED_BUILTIN, HIGH);
+  delay(50);
+  digitalWriteFast(LED_BUILTIN, LOW);
 }
 
 void wakeupEvent(uint8_t src){
-  Serial.println(src);
   //joystick_pins[] = {9, 11, 2, 7, 10}; //Joystick pins - up, right, down, left, push 
   pinMode(src, INPUT_PULLUP); //Set pin to state where it can be queried
   if(display_present){ //Lateral joystick inputs are only valid if there is a display
@@ -356,14 +355,12 @@ void wakeupEvent(uint8_t src){
   if(src == joystick_pins[4]){
     centerPress(src);
   }
-  else if(src > 33){ //If > 33 then trigger was a non-digital event such as RTC timer
-    //logEvent();
+  if(src == 35){ //If > 33 then trigger was a non-digital event such as RTC timer   
   }
-  
   //If wake event was button press, wait for button release
-  if(src <= 33){
+  else if(src <= 33){
     while(!digitalRead(src));
-  }
+  } 
   delay(debounce);
 }
 
@@ -421,13 +418,11 @@ void toggleLog(){
     logEvent();
   }
   else{
-    next_alarm = 0; //Deactivate RTC wake from sleep
     scrollWindow(joystick_pins[4]); //Restore display
   }
 }
 
 void logEvent(){
-  next_alarm = now(); 
   Serial.println("Logging active");
 }
 
@@ -557,6 +552,7 @@ void initializeDevice(){
     strcpy(boot_disp[boot_index++], "RTC sync successful ");
   }
   unix_t = now();
+  alarm.setRtcTimer(log_interval[0], log_interval[1], log_interval[2]);
   sprintf(boot_disp[boot_index++], "%4d/%02d/%02d %02d:%02d:%02d ", year(unix_t), month(unix_t), day(unix_t), hour(unix_t), minute(unix_t), second(unix_t)); //Write current time to boot screen
   
   //Setup I2C communication to highest speed chips sill support - sensor libraries will initialize I2C communications
