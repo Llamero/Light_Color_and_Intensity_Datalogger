@@ -130,7 +130,8 @@ volatile char internal_log_backup[log_dim_y][log_dim_x]; //Array for storing dat
 uint16_t log_internal_index = 0; //Index of internal log array
 uint16_t log_file_index = 0; //Index of current line in log file
 char current_file_name[13]; //Storing the current log file name - max length for FAT32 is 8.3 - 13 characters total including null at end
-int log_file_count = 0; //Counter for tracking number of log files in ascii (track files from aa to zz)
+uint16_t log_file_count = 0; //Counter for tracking number of log files in ascii (track files from aa to zz)
+const uint16_t max_log_file = 26*26; //Largest number of log files available on the same date
 boolean log_active = false; //Whether the device is actively logging or in standby state
 
 //Initialize libraries
@@ -156,7 +157,6 @@ boolean a;
 uint8_t counter = 0;
 void setup() {
   initializeDevice();
-  Serial.println((char)223);
 }
 
 void loop() {
@@ -167,8 +167,8 @@ void loop() {
   
 //  if(LCD_line_index == LCD_window_lines[LCD_window_index]-4) a = false;
 //  if(!LCD_line_index) a = true;
-  wakeup_source = Snooze.hibernate(hibernate_config);
-  wakeupEvent(wakeup_source);
+//  wakeup_source = Snooze.hibernate(hibernate_config);
+//  wakeupEvent(wakeup_source);
 //  if(a) wakeupEvent(joystick_pins[2]);
 //  else wakeupEvent(joystick_pins[0]);
   digitalWriteFast(LED_BUILTIN, HIGH);
@@ -179,11 +179,13 @@ void loop() {
 
 void wakeupEvent(uint8_t src){
   //joystick_pins[] = {9, 11, 2, 7, 10}; //Joystick pins - up, right, down, left, push 
-  if(src == joystick_pins[0] || src == joystick_pins[2]){
-    scrollWindow(src);
-  }
-  else if(src == joystick_pins[1] || src == joystick_pins[3]){
-    cycleWindow(src);
+  if(display_present){ //Lateral joystick inputs are only valid if there is a display
+    if(src == joystick_pins[0] || src == joystick_pins[2]){
+      scrollWindow(src);
+    }
+    else if(src == joystick_pins[1] || src == joystick_pins[3]){
+      cycleWindow(src);
+    }
   }
   else if(src == joystick_pins[4]){
     //centerPress();
@@ -462,6 +464,26 @@ void initializeDevice(){
       }
     }
   }
+
+  //Search for the most recent log file and increment log_file_index to next file ID
+  if(SD.exists(log_dir)){
+    char file_path[100];
+    uint8_t i = -1;
+    uint8_t j = -1;
+    uint8_t dir_len = 0;
+    while(log_dir[++i]) file_path[i] = log_dir[i];
+    file_path[i] = '/';
+    dir_len = i;
+    for(log_file_count = 0; log_file_count < max_log_file-1; log_file_count++){
+      j = -1;
+      i = dir_len;
+      sprintf(current_file_name, "%02d%02d%02d%c%c.txt", year(unix_t)-2000, month(unix_t), day(unix_t), (log_file_count/26)+97, (log_file_count%26)+97);     
+      while(current_file_name[++j]) file_path[++i] = current_file_name[j];
+      file_path[++i] = 0; //Force termination
+      if(!SD.exists(file_path)) break;
+    }
+  }
+  
   //Report number of warning encountered
   if(warning_count){
     sprintf(boot_disp[boot_index++], "% 2d Warnings on boot!", warning_count);
@@ -544,10 +566,7 @@ boolean saveToSD(char (*dir), char (*file_name), char *data_array, int n_lines, 
   char data_line[n_col+1];
   int i = -1;
   int j = -1;
-  int dir_len;
   File f;
-
-  
 
   //Concatenate directory and file name
   while(dir[++i]) file_path[i] = dir[i];
