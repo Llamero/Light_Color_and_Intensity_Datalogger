@@ -31,10 +31,11 @@ const float default_contrast = 0.5; //Set default LCD contrast to half range (ra
 
 // Load drivers
 SnoozeDigital digital;
-SnoozeAlarm  alarm;
 SnoozeTimer timer;
 SnoozeBlock hibernate_config(digital, timer);
-time_t unix_t = 0; //Track current device time
+time_t unix_t = 0; //Track current device time 
+uint16_t timer_interval = 0; //number of ms per timer interval
+
 
 //Setup LCD pin numbers and initial parameters
 const uint8_t LCD_pin[] = {30, 34, 35, 5, 4, 3, 1}; //Only 4-pin supported in LiquidCrystalFast
@@ -327,22 +328,28 @@ boolean a;
 uint8_t counter = 0;
 void setup() {
   initializeDevice();
-  timer.setTimer(5000);// milliseconds
+  timer.setTimer(1000);// milliseconds
 }
 
 void loop() {
   uint8_t wakeup_source = 0;
-  //If an initial alarm time has been set, increment alarm time
+  //If an initial timer time has been set, increment timer time
   wakeup_source = Snooze.hibernate(hibernate_config);
-  delay(debounce);
+  if(wakeup_source <= 33) delay(debounce);
   wakeupEvent(wakeup_source);
-  digitalWriteFast(LED_BUILTIN, HIGH);
-  delay(50);
-  digitalWriteFast(LED_BUILTIN, LOW);
+//  digitalWriteFast(LED_BUILTIN, HIGH);
+//  delay(50);
+//  digitalWriteFast(LED_BUILTIN, LOW);
 }
 
 void wakeupEvent(uint8_t src){
   //joystick_pins[] = {9, 11, 2, 7, 10}; //Joystick pins - up, right, down, left, push 
+  if(src > 33){ //If > 33 then trigger was a non-digital event such as RTC timer   
+    timer_interval++;
+    if(timer_interval == 0);
+    return;
+  }
+  
   pinMode(src, INPUT_PULLUP); //Set pin to state where it can be queried
   if(display_present){ //Lateral joystick inputs are only valid if there is a display
     if(src == joystick_pins[0] || src == joystick_pins[2]){
@@ -355,13 +362,12 @@ void wakeupEvent(uint8_t src){
   if(src == joystick_pins[4]){
     centerPress(src);
   }
-  if(src == 35){ //If > 33 then trigger was a non-digital event such as RTC timer   
-  }
   //If wake event was button press, wait for button release
   else if(src <= 33){
     while(!digitalRead(src));
+    delay(debounce);
   } 
-  delay(debounce);
+  
 }
 
 void centerPress(uint8_t src){
@@ -389,15 +395,17 @@ void centerPress(uint8_t src){
   if(timer == '0'){
     log_active = !log_active;
     if(!display_present){ //If there is not a display - show one LED flash for log start and two LED flashes for log stop
+      pinMode(LED_BUILTIN, OUTPUT); 
       digitalWriteFast(LED_BUILTIN, HIGH);
       delay(1000);
       digitalWriteFast(LED_BUILTIN, LOW);
       if(!log_active){
-        delay(1000); //If log is not active, ignore RTC alarm
+        delay(1000); 
         digitalWriteFast(LED_BUILTIN, HIGH);
         delay(1000);
         digitalWriteFast(LED_BUILTIN, LOW);
       }
+      pinMode(LED_BUILTIN, INPUT_DISABLE); 
     }    
     toggleLog();
   }
@@ -510,10 +518,6 @@ void initializeDevice(){
   boot_index = 0;
   strcpy(boot_disp[boot_index++], "Boot status:        ");
 
-  //Turn off Teensy LED
-  pinMode(LED_BUILTIN, OUTPUT); 
-  digitalWriteFast(LED_BUILTIN, LOW);
-
   //Initialize joystick pins - map to digital wake from hibernate
   for(int a = 0; a<5; a++){
     digital.pinMode(joystick_pins[a], INPUT_PULLUP, FALLING);
@@ -552,7 +556,6 @@ void initializeDevice(){
     strcpy(boot_disp[boot_index++], "RTC sync successful ");
   }
   unix_t = now();
-  alarm.setRtcTimer(log_interval[0], log_interval[1], log_interval[2]);
   sprintf(boot_disp[boot_index++], "%4d/%02d/%02d %02d:%02d:%02d ", year(unix_t), month(unix_t), day(unix_t), hour(unix_t), minute(unix_t), second(unix_t)); //Write current time to boot screen
   
   //Setup I2C communication to highest speed chips sill support - sensor libraries will initialize I2C communications
@@ -782,6 +785,7 @@ float checkVbat(){
     digitalWriteFast(coin_test_pin, LOW); //disconnect coin cell from ADC
     coin_voltage *= 3.3/analog_max;
   }
+  pinMode(coin_analog_pin, INPUT_DISABLE); //Return input to high impedance state
   return coin_voltage;
 }
 
@@ -796,6 +800,7 @@ float checkVin(){
     digitalWriteFast(Vin_test_pin, LOW); //disconnect Vin cell from ADC
     Vin_voltage *= 6.6/analog_max;
   }
+  pinMode(Vin_analog_pin, INPUT_DISABLE); //Return input to high impedance state
   return Vin_voltage;
 }
 
@@ -867,13 +872,16 @@ void setLCDbacklight(float intensity){
 //Fully shutdown display into lowest power state
 void disableDisplay(boolean disable){
   if(disable){
-    digitalWriteFast(LCD_toggle_pin, LOW); //Turn off LCD power
+    digitalWriteFast(LCD_toggle_pin, LOW); //Turn off LCD power - Do NOT turn off LCD if it is connected as this draws more power - input pins in low impedance?
+    lcd.noDisplay(); //Turn off display by command
     digitalWriteFast(LED_PWM_pin, LOW); //Turn off backlight
     analogWrite(contrast_pin, 0); //Turn off LCD contrast
-    DAC0_C0 = (unsigned char) ~DAC_C0_DACEN; //Disable DAC pin DAC0 to save power on hibernate - https://github.com/duff2013/Snooze/issues/12 - unsigned char to fix warning - https://www.avrfreaks.net/forum/warning-large-integer-implicitly-truncated-unsigned-type
+    DAC0_C0 = 0; //Disable DAC pin DAC0 to save power on hibernate - https://github.com/duff2013/Snooze/issues/12 - unsigned char to fix warning - https://www.avrfreaks.net/forum/warning-large-integer-implicitly-truncated-unsigned-type
+    for(int a=0; a<(sizeof(LCD_pin)/sizeof(LCD_pin[0])); a++) pinMode(LCD_pin[a], INPUT_DISABLE); //Set digital pins to high impedance
   }
   else{ 
-    DAC0_C0 = (unsigned char) DAC_C0_DACEN; //Disable DAC pin DAC0 to save power on hibernate - https://github.com/duff2013/Snooze/issues/12 - unsigned char to fix warning - https://www.avrfreaks.net/forum/warning-large-integer-implicitly-truncated-unsigned-type
+    for(int a=0; a<(sizeof(LCD_pin)/sizeof(LCD_pin[0])); a++) pinMode(LCD_pin[a], OUTPUT); //Set digital pins to high impedance
+    DAC0_C0 = 1; //Disable DAC pin DAC0 to save power on hibernate - https://github.com/duff2013/Snooze/issues/12 - unsigned char to fix warning - https://www.avrfreaks.net/forum/warning-large-integer-implicitly-truncated-unsigned-type
     digitalWriteFast(LCD_toggle_pin, HIGH); //Turn off LCD power
     delay(100);
     lcd.begin(20, 4); //Initialize LCD
