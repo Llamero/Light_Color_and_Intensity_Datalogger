@@ -296,13 +296,14 @@ char *LCD_windows[] = {(char *) boot_disp, (char *) log_disp, (char *) settings_
 uint8_t LCD_window_index = 0; //Current LCD window being displayed
 uint8_t LCD_line_index = 0; //Current index of top line being displayed
 uint8_t LCD_window_lines[] = {boot_dim_y, log_disp_dim_y, settings_dim_y}; //Array of total number of lines for each window
-const char log_header[] = {"Date,Time,Temperature(°C),Pressure(hPa),Humidity(%),Intensity(lux),Red(µW/cm^2),Green(µW/cm^2),Blue(µW/cm^2),Clear(µW/cm^2),Vin(V),Vbat(V),Comment,"};
+const char log_header[] = "Date,Time,Temperature(°C),Pressure(hPa),Humidity(%),Intensity(lux),Red(µW/cm^2),Green(µW/cm^2),Blue(µW/cm^2),Clear(µW/cm^2),Vin(V),Vbat(V),Comment,";
+const uint8_t n_log_columns = 13; //Number of items to log per round
 uint8_t boot_index = 0; //Index of boot message
 int warning_count = 0; //Number of warnings encountered during boot 
-const uint16_t log_dim_y = 1000; //Number of rows (total lines)
-const uint8_t log_dim_x = 100; //Number of columns (characters per line)
-volatile char internal_log_backup[log_dim_y][log_dim_x]; //Array for storing data logs while SD card is not available
-uint16_t log_internal_index = 0; //Index of internal log array
+const uint32_t internal_log_size = 100000; //Maximum number of bytes to be stored internally
+volatile char internal_log_backup[internal_log_size]; //Array for storing data logs while SD card is not available 
+uint32_t log_internal_index = 0; //Index of internal log string
+uint32_t log_internal_count = 0; //Number of stings that have been added to internal log
 uint16_t log_file_index = 0; //Index of current line in log file
 char current_file_name[13]; //Storing the current log file name - max length for FAT32 is 8.3 - 13 characters total including null at end
 uint16_t log_file_count = 0; //Counter for tracking number of log files in ascii (track files from aa to zz)
@@ -332,32 +333,53 @@ uint8_t counter = 0;
 
 void setup() {
   initializeDevice();
+  initializeLog();
 }
 
 void loop() {
-  uint8_t wakeup_source = 0;
-  //If an initial timer time has been set, increment timer time
-
-  wakeup_source = Snooze.hibernate(hibernate_config);
-  unix_t = now(); //Update to current RTC time
-  if(wakeup_source <= 33) delay(debounce);
-  wakeupEvent(wakeup_source);
+//  uint8_t wakeup_source = 0;
+//  
+//  //If an initial timer time has been set, increment timer time
+//  wakeup_source = Snooze.hibernate(hibernate_config);
+//  unix_t = now(); //Update to current RTC time
+//  if(wakeup_source <= 33) delay(debounce);
+//  wakeupEvent(wakeup_source);
+  next_log_time = now();
+  logEvent();
+  delay(500); 
+  digitalWriteFast(LED_BUILTIN, HIGH);
+  delay(500);
+  digitalWriteFast(LED_BUILTIN, LOW);
+  if(log_internal_count>4){
+    uint32_t i = 0;
+    while(log_internal_count){
+      if(!internal_log_backup[i]){
+        Serial.println();
+        log_internal_count--;
+      }
+      else Serial.print(internal_log_backup[i]);
+      i++;
+    }
+    Serial.println("------------------------------------");
+    log_internal_index = 0;  
+  }
 }
 
 void wakeupEvent(uint8_t src){
   //joystick_pins[] = {9, 11, 2, 7, 10}; //Joystick pins - up, right, down, left, push 
   if(src > 33){ //If > 33 then trigger was a non-digital event such as RTC timer   
     if(log_next_wake){
-      log_internal_index++;
       lcd.setCursor(0,0);
       lcd.print(next_log_time);
       lcd.setCursor(0,1);
       lcd.print(unix_t);
       lcd.setCursor(0,2);
       lcd.print(log_internal_index);
-      next_log_time += log_interval; //Increment log time to next time point - if point was missed, go to next point
-      if(log_active){      
+ 
+      if(log_active){ 
+             
       }
+      next_log_time += log_interval; //Increment log time to next time point - if point was missed, go to next point
     }
     setHibernateTimer(); //Reset wakeup timer to next interval
     return;
@@ -379,8 +401,7 @@ void wakeupEvent(uint8_t src){
   else if(src <= 33){
     while(!digitalRead(src));
     delay(debounce);
-  } 
-  
+  }  
 }
 
 void centerPress(uint8_t src){
@@ -405,20 +426,7 @@ void centerPress(uint8_t src){
     DrawBigChar(15, 2, timer--);
     delay(1000);
   }
-  if(timer == '0'){
-    log_active = !log_active;
-    if(!display_present){ //If there is not a display - show one LED flash for log start and two LED flashes for log stop
-      pinMode(LED_BUILTIN, OUTPUT); 
-      digitalWriteFast(LED_BUILTIN, HIGH);
-      delay(1000);
-      digitalWriteFast(LED_BUILTIN, LOW);
-      if(!log_active){
-        delay(1000); 
-        digitalWriteFast(LED_BUILTIN, HIGH);
-        delay(1000);
-        digitalWriteFast(LED_BUILTIN, LOW);
-      }
-    }    
+  if(timer == '0'){   
     toggleLog();
   }
   else{
@@ -454,9 +462,22 @@ void setHibernateTimer(){
 
 //Handles starting and stopping logs
 void toggleLog(){
+  log_active = !log_active;
+  if(!display_present){ //If there is not a display - show one LED flash for log start and two LED flashes for log stop
+    pinMode(LED_BUILTIN, OUTPUT); 
+    digitalWriteFast(LED_BUILTIN, HIGH);
+    delay(1000);
+    digitalWriteFast(LED_BUILTIN, LOW);
+    if(!log_active){
+      delay(1000); 
+      digitalWriteFast(LED_BUILTIN, HIGH);
+      delay(1000);
+      digitalWriteFast(LED_BUILTIN, LOW);
+    }
+  } 
   if(log_active){
     if(disable_display_on_log) disableDisplay(true);
-    logEvent();
+    initializeLog();
   }
   else{
     scrollWindow(joystick_pins[4]); //Restore display
@@ -464,7 +485,32 @@ void toggleLog(){
 }
 
 void logEvent(){
-  Serial.println("Logging active");
+  //Add date and time to log
+  log_internal_index += snprintf(internal_log_backup+log_internal_index, internal_log_size-log_internal_index, 
+  "%4d/%02d/%02d," //log date
+  "%02d:%02d:%02d," //log time
+  , year(next_log_time), month(next_log_time), day(next_log_time), //Get date
+  hour(next_log_time), minute(next_log_time), second(next_log_time)); //Get time
+  log_internal_count++; 
+  internal_log_backup[log_internal_index++] = 0;
+}
+
+void initializeLog(){
+  //Initialize logging variables
+  internal_log_backup[0] = 0;
+  log_internal_index = 0;
+  log_internal_count = 0;
+  log_file_index = 0;
+    
+  //Sync log timing to button press
+  next_log_time = unix_t;
+
+  //Add header to log queue
+  log_internal_index += snprintf(internal_log_backup+log_internal_index, internal_log_size-log_internal_index, log_header);
+  internal_log_backup[log_internal_index++] = 0;
+  log_internal_count++; 
+
+  logEvent();
 }
 
 //Use the up and down buttons to vertically scroll through the current window
