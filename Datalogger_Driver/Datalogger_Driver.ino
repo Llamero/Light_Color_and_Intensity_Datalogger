@@ -348,16 +348,15 @@ void wakeupEvent(uint8_t src){
   //joystick_pins[] = {9, 11, 2, 7, 10}; //Joystick pins - up, right, down, left, push 
   if(src > 33){ //If > 33 then trigger was a non-digital event such as RTC timer   
     if(log_next_wake){
-      digitalWriteFast(LED_BUILTIN, HIGH);
-      delay(700);
+      log_internal_index++;
       lcd.setCursor(0,0);
       lcd.print(next_log_time);
       lcd.setCursor(0,1);
       lcd.print(unix_t);
-      digitalWriteFast(LED_BUILTIN, LOW);
-      next_log_time += log_interval; //Increment log time to next time point
-      if(log_active){
-        
+      lcd.setCursor(0,2);
+      lcd.print(log_internal_index);
+      next_log_time += log_interval; //Increment log time to next time point - if point was missed, go to next point
+      if(log_active){      
       }
     }
     setHibernateTimer(); //Reset wakeup timer to next interval
@@ -436,14 +435,19 @@ void centerPress(uint8_t src){
 void setHibernateTimer(){
   uint16_t ms_remaining = 0;
   time_remaining  = next_log_time - unix_t;
-  if(time_remaining > 65){
-    timer.setTimer(60000);
-    log_next_wake = false;
+  if(next_log_time > unix_t){ //If time is still remaining
+    if(time_remaining >= 120){
+      timer.setTimer(60000);
+      log_next_wake = false;
+    }
+    else{
+      ms_remaining = (time_remaining * 1000) - log_offset; //Subtract offset to ensure device wakes with enough time to measure log point
+      timer.setTimer(ms_remaining);
+      log_next_wake = true;
+    }
   }
-  else{
-    ms_remaining = (time_remaining * 1000) - log_offset; //Subtract offset to ensure device wakes with enough time to measure log point
-    if(ms_remaining > 5000 || ms_remaining < 10)  ms_remaining = 10; //If time remaining is near zero or negative - set time to be arbitrarily small
-    timer.setTimer(ms_remaining);
+  else{ //If no time is left - sleep a short interval and log
+    timer.setTimer(10);
     log_next_wake = true;
   }
 }
