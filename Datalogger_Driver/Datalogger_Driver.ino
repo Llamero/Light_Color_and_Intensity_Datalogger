@@ -10,7 +10,7 @@
 
 //Setup default parameters
 uint16_t n_logs_per_file = 10000; //The number of logs to save to a file before creating a new low file
-int log_interval[] = {0, 0, 5}; //Number of hours, minutes, and seconds between log intervals
+uint8_t log_interval_array[] = {0, 0, 5}; //Number of hours, minutes, and seconds between log intervals
 const char boot_dir[] = "boot_log"; //Directory to save boot log files into - max length 8 char
 const char log_dir[] = "data_log"; //Directory to save data log files into - max length 8 char
 boolean measure_temp = true;
@@ -34,8 +34,11 @@ SnoozeDigital digital;
 SnoozeTimer timer;
 SnoozeBlock hibernate_config(digital, timer);
 time_t unix_t = 0; //Track current device time 
-uint16_t timer_interval = 0; //number of ms per timer interval
-
+time_t next_log_time = 0; //next log time in unix time
+time_t time_remaining = 0; //Time remaing to next log interval
+time_t log_interval = (60*60*log_interval_array[0])+(60*log_interval_array[1])+log_interval_array[2];
+const uint16_t log_offset = 1000; //Time in ms it takes to log a data point - also determines smallest log interval - can't be >5535 ms.
+boolean log_next_wake = false; //Whether to log on the next timer wake event
 
 //Setup LCD pin numbers and initial parameters
 const uint8_t LCD_pin[] = {30, 34, 35, 5, 4, 3, 1}; //Only 4-pin supported in LiquidCrystalFast
@@ -324,29 +327,40 @@ void dateTime(uint16_t* date, uint16_t* time) {
 
 
 float contrast = 0;
-boolean a;
+boolean state = false;
 uint8_t counter = 0;
+
 void setup() {
   initializeDevice();
-  timer.setTimer(1000);// milliseconds
 }
 
 void loop() {
   uint8_t wakeup_source = 0;
   //If an initial timer time has been set, increment timer time
+
   wakeup_source = Snooze.hibernate(hibernate_config);
+  unix_t = now(); //Update to current RTC time
   if(wakeup_source <= 33) delay(debounce);
   wakeupEvent(wakeup_source);
-//  digitalWriteFast(LED_BUILTIN, HIGH);
-//  delay(50);
-//  digitalWriteFast(LED_BUILTIN, LOW);
 }
 
 void wakeupEvent(uint8_t src){
   //joystick_pins[] = {9, 11, 2, 7, 10}; //Joystick pins - up, right, down, left, push 
   if(src > 33){ //If > 33 then trigger was a non-digital event such as RTC timer   
-    timer_interval++;
-    if(timer_interval == 0);
+    if(log_next_wake){
+      digitalWriteFast(LED_BUILTIN, HIGH);
+      delay(700);
+      lcd.setCursor(0,0);
+      lcd.print(next_log_time);
+      lcd.setCursor(0,1);
+      lcd.print(unix_t);
+      digitalWriteFast(LED_BUILTIN, LOW);
+      next_log_time += log_interval; //Increment log time to next time point
+      if(log_active){
+        
+      }
+    }
+    setHibernateTimer(); //Reset wakeup timer to next interval
     return;
   }
   
@@ -405,7 +419,6 @@ void centerPress(uint8_t src){
         delay(1000);
         digitalWriteFast(LED_BUILTIN, LOW);
       }
-      pinMode(LED_BUILTIN, INPUT_DISABLE); 
     }    
     toggleLog();
   }
@@ -417,6 +430,22 @@ void centerPress(uint8_t src){
   //Restore arrow chars for menu scrolling
   lcd.createChar(0, up_arrow); //Create arrow characters
   lcd.createChar(1, down_arrow); 
+}
+
+//Increment timer and sync to RTC;
+void setHibernateTimer(){
+  uint16_t ms_remaining = 0;
+  time_remaining  = next_log_time - unix_t;
+  if(time_remaining > 65){
+    timer.setTimer(60000);
+    log_next_wake = false;
+  }
+  else{
+    ms_remaining = (time_remaining * 1000) - log_offset; //Subtract offset to ensure device wakes with enough time to measure log point
+    if(ms_remaining > 5000 || ms_remaining < 10)  ms_remaining = 10; //If time remaining is near zero or negative - set time to be arbitrarily small
+    timer.setTimer(ms_remaining);
+    log_next_wake = true;
+  }
 }
 
 //Handles starting and stopping logs
@@ -518,6 +547,10 @@ void initializeDevice(){
   boot_index = 0;
   strcpy(boot_disp[boot_index++], "Boot status:        ");
 
+  //Disable built-in LED
+  pinMode(LED_BUILTIN, OUTPUT); 
+  digitalWriteFast(LED_BUILTIN, LOW);
+
   //Initialize joystick pins - map to digital wake from hibernate
   for(int a = 0; a<5; a++){
     digital.pinMode(joystick_pins[a], INPUT_PULLUP, FALLING);
@@ -556,6 +589,8 @@ void initializeDevice(){
     strcpy(boot_disp[boot_index++], "RTC sync successful ");
   }
   unix_t = now();
+  next_log_time = unix_t + log_interval;
+  setHibernateTimer();
   sprintf(boot_disp[boot_index++], "%4d/%02d/%02d %02d:%02d:%02d ", year(unix_t), month(unix_t), day(unix_t), hour(unix_t), minute(unix_t), second(unix_t)); //Write current time to boot screen
   
   //Setup I2C communication to highest speed chips sill support - sensor libraries will initialize I2C communications
