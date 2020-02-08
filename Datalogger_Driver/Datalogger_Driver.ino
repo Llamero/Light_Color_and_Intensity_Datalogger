@@ -21,7 +21,7 @@ boolean measure_color = true;
 boolean measure_battery = true;
 
 boolean disable_display_on_log = true; //Completely power down display during logging
-const float default_backlight = 1.0; //Set default backlight intensity to full brightness (range is 0-1)
+const float default_backlight = 0; //Set default backlight intensity to full brightness (range is 0-1)
 const float default_contrast = 0.5; //Set default LCD contrast to half range (range is 0-1)
 
 //Allow Teensy to re-run setup when settings are changed - Call "CPU_RESTART"
@@ -329,40 +329,42 @@ void dateTime(uint16_t* date, uint16_t* time) {
 
 float contrast = 0;
 boolean state = false;
-uint8_t counter = 0;
+uint32_t counter = 0;
 
 void setup() {
   initializeDevice();
   initializeLog();
+  //lcd.clear();
 }
 
 void loop() {
-//  uint8_t wakeup_source = 0;
-//  
-//  //If an initial timer time has been set, increment timer time
-//  wakeup_source = Snooze.hibernate(hibernate_config);
-//  unix_t = now(); //Update to current RTC time
-//  if(wakeup_source <= 33) delay(debounce);
-//  wakeupEvent(wakeup_source);
-  next_log_time = now();
-  logEvent();
-  delay(500); 
-  digitalWriteFast(LED_BUILTIN, HIGH);
-  delay(500);
-  digitalWriteFast(LED_BUILTIN, LOW);
-  if(log_internal_count>4){
-    uint32_t i = 0;
-    while(log_internal_count){
-      if(!internal_log_backup[i]){
-        Serial.println();
-        log_internal_count--;
-      }
-      else Serial.print(internal_log_backup[i]);
-      i++;
-    }
-    Serial.println("------------------------------------");
-    log_internal_index = 0;  
-  }
+  uint8_t wakeup_source = 0;
+  
+  //If an initial timer time has been set, increment timer time
+  wakeup_source = Snooze.hibernate(hibernate_config);
+  unix_t = now(); //Update to current RTC time
+  if(wakeup_source <= 33) delay(debounce);
+  wakeupEvent(wakeup_source);
+
+//  next_log_time = now();
+//  logEvent();
+//  delay(500); 
+//  digitalWriteFast(LED_BUILTIN, HIGH);
+//  delay(500);
+//  digitalWriteFast(LED_BUILTIN, LOW);
+//  if(log_internal_count>20){
+//    uint32_t i = 0;
+//    while(log_internal_count){
+//      if(!internal_log_backup[i]){
+//        Serial.println();
+//        log_internal_count--;
+//      }
+//      else Serial.print(internal_log_backup[i]);
+//      i++;
+//    }
+//    Serial.println("------------------------------------");
+//    log_internal_index = 0;  
+//  }
 }
 
 void wakeupEvent(uint8_t src){
@@ -374,7 +376,7 @@ void wakeupEvent(uint8_t src){
       lcd.setCursor(0,1);
       lcd.print(unix_t);
       lcd.setCursor(0,2);
-      lcd.print(log_internal_index);
+      lcd.print(++counter);
  
       if(log_active){ 
              
@@ -651,6 +653,8 @@ void initializeDevice(){
   analogWriteResolution(analog_resolution); //Set DAC and PWM resolution - NOTE: Do not change once set!
   analogReadResolution(analog_resolution); //Set ADC resolution - NOTE: Do not change once set!
   analogWriteFrequency(LED_PWM_pin, analog_freq); //Set LED PWM freq - other pins on same timer will also change - https://www.pjrc.com/teensy/td_pulse.html
+  pinMode(LCD_toggle_pin, OUTPUT); //Turn display on
+  digitalWrite(LCD_toggle_pin, HIGH);
   lcd.begin(20, 4); //Initialize LCD
   lcd.createChar(0, up_arrow); //Create arrow characters
   lcd.createChar(1, down_arrow);
