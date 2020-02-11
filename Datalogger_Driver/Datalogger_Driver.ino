@@ -943,9 +943,9 @@ char autoGain(char sensor, uint16_t test_channel){
   Serial.print(", counter: ");
   Serial.print(counter);
     
-  //Adjust the gain as if reading is out of range as long as exposure can still be adjusted 
+  //Adjust the gain as if reading is out of range as long as exposure can still be adjusted - timeout at log interval if logging 
   if((test_channel > *over_exposed && *integration_index) || (test_channel < *under_exposed  && *gain_index < max_index)){
-    while(counter-- && unix_t < next_log_time-1 && (test_channel > *over_exposed && *integration_index) || (test_channel < *under_exposed  && *gain_index < max_index)){
+    while(counter-- && (unix_t < next_log_time-1 || !log_active) && (test_channel > *over_exposed && *integration_index) || (test_channel < *under_exposed  && *gain_index < max_index)){
       //Adjust exposure index based on sensor reading if there is still adjustment range left
       if(test_channel > *over_exposed){
         if(*gain_index) --*gain_index;
@@ -962,6 +962,7 @@ char autoGain(char sensor, uint16_t test_channel){
         color_sensor.setGain(color_gain_command[*gain_index]);
         color_sensor.setIntegrationTime(color_integration_command[*integration_index]);
         color_sensor.getRawData(&dummy_channel, &dummy_channel, &dummy_channel, &test_channel);
+        delay(100);
         color_sensor.getRawData(&dummy_channel, &dummy_channel, &dummy_channel, &test_channel);
         *over_exposed = color_integration_max_count[color_integration_index] >> color_over_shift;
         *under_exposed = color_integration_max_count[color_integration_index] >> color_under_shift;  //Exposure steps in 2^4 so min is 1 + 2^(4) + 1 = >>6  

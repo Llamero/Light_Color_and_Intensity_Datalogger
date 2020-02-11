@@ -327,7 +327,7 @@ uint32_t Adafruit_TSL2591::getFullLuminosity (void)
 
   // Enable the device
   enable();
-
+  
   // Wait x ms for ADC to complete
   for (uint8_t d=0; d<=_integration; d++)
   {
