@@ -240,7 +240,6 @@ const uint8_t gBigFontAsciiTableWide[]  = {
 };
 
 
-
 //Setup sensor pin numbers
 const uint8_t temp_power_pin = 20; //Set Vcc pins
 const uint8_t color_power_pin = 23;
@@ -251,6 +250,34 @@ const uint8_t I2C_pullup_pin = 12; //Pin providing I2C pullup voltage
 TwoWire* temp_port = &Wire; //Set I2C (wire) ports
 TwoWire* color_port = &Wire;
 TwoWire* light_port = &Wire1;
+
+//Sensor settings:
+const uint8_t color_gain_value[] = {1, 4, 16, 60};
+const uint8_t color_gain_command[] = {0x00, 0x01, 0x02, 0x03}; 
+const uint8_t color_max_index = sizeof(color_gain_value)/sizeof(color_gain_value[0])-1;
+uint8_t color_gain_index = color_max_index; //Start at maximum sensitivity
+const uint16_t color_integration_value[] = {24, 101, 154, 700};
+const uint8_t color_integration_command[] = {0xF6, 0xD5, 0xC0, 0x00};
+const uint16_t color_integration_max_count[] = {10240, 43008, 65535, 65535}; //Max ADC count for given integration time 
+uint8_t color_integration_index = color_max_index; //Start at maximum sensitivity
+const uint8_t color_over_shift = 1; //Over-saturated cutoff - number of shifts to max value (= divide by 2 per shift)
+const uint8_t color_under_shift = color_over_shift + 3; //Exposure steps in 2^2 so min is 2 + 1 = >>3 
+uint16_t color_over_exposed = color_integration_max_count[color_integration_index] >> color_over_shift;
+uint16_t color_under_exposed = color_integration_max_count[color_integration_index] >> color_under_shift;
+
+const float vis_gain_value[] = {1, 24.5, 400, 9200};
+const float IR_gain_value[] = {1, 24.5, 400, 9900};
+const uint8_t light_gain_command[] = {0x00, 0x10, 0x20, 0x30}; 
+const uint8_t light_max_index = sizeof(vis_gain_value)/sizeof(vis_gain_value[0])-1;
+uint8_t light_gain_index = light_max_index; //Start at maximum sensitivity
+const float light_integration_value[] = {100, 200, 400, 600};
+const uint8_t light_integration_command[] = {0x00, 0x01, 0x03, 0x05};
+const uint16_t light_integration_max_count[] = {36863, 65535, 65535, 65535}; //Max ADC count for given integration time 
+uint8_t light_integration_index = light_max_index; //Start at maximum sensitivity
+const uint8_t light_over_shift = 1; //Over-saturated cutoff - number of shifts to max value (= divide by 2 per shift)
+const uint8_t light_under_shift = light_over_shift + 6; //Gain steps in 2^5 so min is 5 + 1 = >>6 
+uint16_t light_over_exposed = light_integration_max_count[light_integration_index] >> light_over_shift;
+uint16_t light_under_exposed = light_integration_max_count[light_integration_index] >> light_under_shift;
 
 //Setup joystick pins
 const uint8_t joystick_pins[] = {9, 11, 2, 7, 10}; //Joystick pins - up, right, down, left, push 
@@ -287,10 +314,10 @@ boolean SD_present = false;
 const uint8_t boot_dim_y = 20; //Number of rows (total lines)
 const uint8_t LCD_dim_x = 21; //Number of columns (characters per line) - add one character for null character to delineate strings
 char boot_disp[boot_dim_y][LCD_dim_x]; //Array for boot display
-const uint8_t log_disp_dim_y = 14; //Number of rows (total lines)
-char log_disp[log_disp_dim_y][LCD_dim_x] = {"Log Status:         ","Date:               ","Time:               ","Temp(\xDF""C):           ","Pres(hPa):          ","Humidity(%):        ","lux:                ","Red(\xE4""W):            ","Green(\xE4""W):          ","Blue(\xE4""W):           ","Clear(\xE4""W):          ","Vin(V):             ","Vbat(V):            ","Comment:            "};
+const uint8_t log_disp_dim_y = 24; //Number of rows (total lines)
+char log_disp[log_disp_dim_y][LCD_dim_x] = {"Log Status:         ","---------RTC--------","Date:               ","Time:               ","-----AIR SENSOR-----","Temp:             \xDF""C","Pres(hPa):          ","Humidity(%):        ","----LIGHT SENSOR----","Gain:               ","Integration:      ms","Vis ADC:            ","IR ADC:             ","----COLOR SENSOR----","Gain:               ","Integration:      ms","Red ADC:            ","Green ADC:          ","Blue ADC:           ","Clear ADC:          ","-------BATTERY------","Vin:               V","Vbat:              V","Comment:            "};
 const uint8_t settings_dim_y = 17; //Number of rows (total lines)
-char settings_disp[settings_dim_y][LCD_dim_x] = {"Settings:           ","-------SENSORS------","Temperature:        ","Humidity:           ","Pressure:           ","Lux:                ","Color:              ","Battery:            ","----LOG INTERVAL----", "(hh:mm:ss):         ","----LCD SETTINGS----","Contrast:           ","Backlight:          ","Disable on log:     ","----RTC SETTINGS----","Date:               ","Time:               "};
+char settings_disp[settings_dim_y][LCD_dim_x] = {"Settings:           ","-------SENSORS------","Temperature:        ","Humidity:           ","Pressure:           ","Light:              ","Color:              ","Battery:            ","----LOG INTERVAL----", "(hh:mm:ss):         ","----LCD SETTINGS----","Contrast:           ","Backlight:          ","Disable on log:     ","----RTC SETTINGS----","Date:               ","Time:               "};
 const uint8_t n_windows = 3;
 char *LCD_windows[] = {(char *) boot_disp, (char *) log_disp, (char *) settings_disp}; //Array of windows available for LCD
 uint8_t LCD_window_index = 0; //Current LCD window being displayed
@@ -312,7 +339,7 @@ boolean log_active = false; //Whether the device is actively logging or in stand
 
 //Initialize libraries
 Adafruit_BME280 temp_sensor; //Create instance of temp sensor
-Adafruit_TCS34725 color_sensor = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_700MS, TCS34725_GAIN_60X); //Create instance of color sensor initialize with peak sensitivity
+Adafruit_TCS34725 color_sensor = Adafruit_TCS34725(color_integration_command[color_integration_index], color_gain_command[color_gain_index]); //Create instance of color sensor initialize with peak sensitivity
 Adafruit_TSL2591 light_sensor = Adafruit_TSL2591(2591); //Create instance of light sensor - number is sensor ID
 
 //------------------------------------------------------------------------------
@@ -334,37 +361,44 @@ uint32_t counter = 0;
 void setup() {
   initializeDevice();
   initializeLog();
-  //lcd.clear();
+    pinMode(temp_power_pin, OUTPUT);
+    pinMode(color_power_pin, OUTPUT);
+    pinMode(light_power_pin, OUTPUT);
+    pinMode(I2C_pullup_pin, OUTPUT);
+    digitalWriteFast(temp_power_pin, (measure_temp || measure_humidity || measure_pressure)); //Power BME280 if any evironmental variable is to be sensed
+    digitalWriteFast(color_power_pin, measure_color);
+    digitalWriteFast(light_power_pin, measure_lux);
+    digitalWriteFast(I2C_pullup_pin, (measure_temp || measure_humidity || measure_pressure || measure_lux || measure_color));
 }
 
 void loop() {
   uint8_t wakeup_source = 0;
+  uint32_t lum;
+  uint16_t test_channel, dummy_channel;
+  char response;
   
   //If an initial timer time has been set, increment timer time
-  wakeup_source = Snooze.hibernate(hibernate_config);
-  unix_t = now(); //Update to current RTC time
-  if(wakeup_source <= 33) delay(debounce);
-  wakeupEvent(wakeup_source);
-
-//  next_log_time = now();
-//  logEvent();
-//  delay(500); 
-//  digitalWriteFast(LED_BUILTIN, HIGH);
-//  delay(500);
-//  digitalWriteFast(LED_BUILTIN, LOW);
-//  if(log_internal_count>20){
-//    uint32_t i = 0;
-//    while(log_internal_count){
-//      if(!internal_log_backup[i]){
-//        Serial.println();
-//        log_internal_count--;
-//      }
-//      else Serial.print(internal_log_backup[i]);
-//      i++;
-//    }
-//    Serial.println("------------------------------------");
-//    log_internal_index = 0;  
-//  }
+//  wakeup_source = Snooze.hibernate(hibernate_config);
+//  unix_t = now(); //Update to current RTC time
+//  if(wakeup_source <= 33) delay(debounce);
+//  wakeupEvent(wakeup_source);
+    lum = light_sensor.getFullLuminosity();
+    test_channel = lum & 0xFFFF;
+    Serial.print("Light: ");
+    Serial.print("ADC input: ");
+    Serial.print(test_channel);
+    Serial.print(", ");
+    response = autoGain('l', test_channel);
+    Serial.print("Response: ");
+    Serial.println(response);
+    color_sensor.getRawData(&dummy_channel, &dummy_channel, &dummy_channel, &test_channel);
+    Serial.print("Color: ");
+    Serial.print("ADC input: ");
+    Serial.print(test_channel);
+    Serial.print(", ");
+    response = autoGain('c', test_channel);
+    Serial.print("Response: ");
+    Serial.println(response);
 }
 
 void wakeupEvent(uint8_t src){
@@ -695,6 +729,9 @@ void initializeDevice(){
     temp_on = false;
   }
   if(color_sensor.begin(0x29, color_port)){
+    uint16_t color[4];
+    uint16_t max_value = 0;
+    uint8_t max_index = 0;
     strcpy(boot_disp[boot_index++], "Color sensor...OK  ");
     color_present = true;
     color_on = true;
@@ -709,7 +746,9 @@ void initializeDevice(){
   if(light_sensor.begin(light_port)){
     strcpy(boot_disp[boot_index++], "Light sensor...OK   ");
     light_present = true;
-    light_on = true;    
+    light_on = true;
+    light_sensor.setGain(light_gain_command[light_gain_index]);
+    light_sensor.setTiming(light_integration_command[light_integration_index]);
   }
   else{
     strcpy(boot_disp[boot_index++], "Light sensor...FAIL!");
@@ -856,6 +895,112 @@ void initializeDevice(){
     }
     lcd.setCursor(LCD_dim_x-2, 0);
     lcd.write(0);
+  }
+}
+
+//Automatically adjust gain on light sensors
+char autoGain(char sensor, uint16_t test_channel){
+  uint32_t lum; //Light sensor returns to channels as a concatenated 32-bit value that needs to be split
+  uint16_t dummy_channel;
+  uint16_t *over_exposed, *under_exposed;
+  uint8_t counter, max_index;
+  uint8_t *gain_index, *integration_index, *gain_command, *integration_command;
+  unix_t = next_log_time-2; //Initialize unix-t to the past so at least one gain adjustment is performed
+  
+
+  //Get sensor settings
+  if(sensor == 'c'){
+    counter = 2*(color_max_index+1)+1; //Sanity check to stop loop after all possible changes have been made
+    gain_index = &color_gain_index;
+    integration_index = &color_integration_index;
+    over_exposed = &color_over_exposed;
+    under_exposed = &color_under_exposed;
+    max_index = color_max_index;
+    gain_command = color_gain_command;
+    integration_command = color_integration_command;   
+  }
+  else{
+    counter = 2*(light_max_index+1)+1;
+    gain_index = &light_gain_index;
+    integration_index = &light_integration_index;
+    over_exposed = &light_over_exposed;
+    under_exposed = &light_under_exposed;
+    max_index = light_max_index;
+    gain_command = light_gain_command;
+    integration_command = light_integration_command;
+  }
+
+  Serial.print("ADC: ");
+  Serial.print(test_channel);
+  Serial.print(", Gain Index: ");
+  Serial.print(*gain_index);
+  Serial.print(", Int Index: ");
+  Serial.print(*integration_index);
+  Serial.print(", over exp: ");
+  Serial.print(*over_exposed);
+  Serial.print(", under exp: ");
+  Serial.print(*under_exposed);
+  Serial.print(", counter: ");
+  Serial.print(counter);
+    
+  //Adjust the gain as if reading is out of range as long as exposure can still be adjusted 
+  if((test_channel > *over_exposed && *integration_index) || (test_channel < *under_exposed  && *gain_index < max_index)){
+    while(counter-- && unix_t < next_log_time-1 && (test_channel > *over_exposed && *integration_index) || (test_channel < *under_exposed  && *gain_index < max_index)){
+      //Adjust exposure index based on sensor reading if there is still adjustment range left
+      if(test_channel > *over_exposed){
+        if(*gain_index) --*gain_index;
+        else if(*integration_index) --*integration_index;
+        else return 's'; //Otherwise, tell calling function that the sensor is saturated
+      }
+      else if(test_channel < *under_exposed)
+        if(*integration_index < max_index) ++*integration_index;
+        else if(*gain_index < max_index) ++*gain_index;
+        else return 'm'; //Otherwise, tell calling function that the sensor is already at max gain and integration time;
+      
+      //Get sensor readings and update over and under exposure values
+      if(sensor == 'c'){
+        color_sensor.setGain(color_gain_command[*gain_index]);
+        color_sensor.setIntegrationTime(color_integration_command[*integration_index]);
+        color_sensor.getRawData(&dummy_channel, &dummy_channel, &dummy_channel, &test_channel);
+        color_sensor.getRawData(&dummy_channel, &dummy_channel, &dummy_channel, &test_channel);
+        *over_exposed = color_integration_max_count[color_integration_index] >> color_over_shift;
+        *under_exposed = color_integration_max_count[color_integration_index] >> color_under_shift;  //Exposure steps in 2^4 so min is 1 + 2^(4) + 1 = >>6  
+      }
+      else{
+        light_sensor.setGain(light_gain_command[*gain_index]);
+        light_sensor.setTiming(light_integration_command[*integration_index]);
+        lum = light_sensor.getFullLuminosity();
+        test_channel = lum & 0xFFFF;
+        *over_exposed = light_integration_max_count[light_integration_index] >> light_over_shift;
+        *under_exposed = light_integration_max_count[light_integration_index] >> light_under_shift; //Gain steps in 2^5 so min is 1 + 2^(5) + 1 = >>7
+      }
+      unix_t = now(); //Update the clock
+      Serial.println();
+      Serial.println("------ADJUST-----");
+      Serial.print("ADC: ");
+      Serial.print(test_channel);
+      Serial.print(", Gain Index: ");
+      Serial.print(*gain_index);
+      Serial.print(", Int Index: ");
+      Serial.print(*integration_index);
+      Serial.print(", over exp: ");
+      Serial.print(*over_exposed);
+      Serial.print(", under exp: ");
+      Serial.print(*under_exposed);
+      Serial.print(", counter: ");
+      Serial.print(counter);
+    }
+    return 'c'; //Tell calling function that exposure was changed 
+  }
+  return 0; //Otherwise, tell calling function that no change was made
+
+}
+
+//Set upper and lower interrupt limits
+void setIntLimits(char sensor){
+  float ratio;
+  if(sensor == 'c'){
+    
   }
 }
 
