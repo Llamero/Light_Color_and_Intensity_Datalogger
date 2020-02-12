@@ -33,7 +33,8 @@ const float default_contrast = 0.5; //Set default LCD contrast to half range (ra
 SnoozeDigital digital;
 SnoozeTimer timer;
 SnoozeBlock hibernate_config(digital, timer);
-time_t unix_t = 0; //Track current device time 
+time_t unix_t = 0; //Track current device time
+uint16_t unix_ms = 0; //Current time in ms
 time_t next_log_time = 0; //next log time in unix time
 time_t time_remaining = 0; //Time remaing to next log interval
 time_t log_interval = (60*60*log_interval_array[0])+(60*log_interval_array[1])+log_interval_array[2];
@@ -356,17 +357,18 @@ void dateTime(uint16_t* date, uint16_t* time) {
 
 float contrast = 0;
 boolean state = false;
-uint32_t counter = 0;
+uint32_t log_display_counter = 0;
 
 void setup() {
   initializeDevice();
   initializeLog();
+  lcd.clear();
 }
 
 void loop() {
   uint8_t wakeup_source = 0;
   uint32_t index = 0;
-  counter++;
+  log_display_counter++;
 //  lcd.setCursor(0,0);
 //  lcd.print(next_log_time);
 //  lcd.setCursor(0,2);
@@ -389,7 +391,9 @@ void loop() {
     }
     log_internal_index = 0;
     internal_log_buffer[0] = 0;
-  }  
+  }
+  lcd.setCursor(0,0);
+  lcd.print(log_display_counter);  
 }
 
 void wakeupEvent(uint8_t src){
@@ -471,8 +475,8 @@ void setHibernateTimer(){
       log_next_wake = false;
     }
     else{
-      ms_remaining = RTCms(); //Get RTCms first as it will also automatically update unix_t if a rollover happened
-      ms_remaining = ((next_log_time - unix_t) * 1000) - ms_remaining; //calculate ms remaining to next log time
+      RTCms(); //Get RTCms first as it will also automatically update unix_t if a rollover happened
+      ms_remaining = ((next_log_time - unix_t) * 1000) - unix_ms; //calculate ms remaining to next log time
       timer.setTimer(ms_remaining);
       log_next_wake = true;
     }
@@ -509,7 +513,7 @@ void toggleLog(){
 
 void logEvent(){
   uint8_t wakeup_source;
-  uint16_t r, g, b, c, full, IR;
+  uint16_t RTC_ms, r, g, b, c, full, IR;
   uint32_t lum;
   float temp, pres, hum, Vbat, Vin;
   char response = ' ';
@@ -523,12 +527,12 @@ void logEvent(){
   digitalWriteFast(I2C_pullup_pin, LOW); //Power down I2C line
   
   //Add date and time to log
-  unix_t = now();
+  RTCms();
   log_internal_index += snprintf(internal_log_buffer+log_internal_index, internal_log_size-log_internal_index, 
   "%4d/%02d/%02d," //log date
   "%02d:%02d:%02d.%03d," //log time
   , year(unix_t), month(unix_t), day(unix_t), //Get date
-  hour(unix_t), minute(unix_t), second(unix_t), RTCms()); //Get time
+  hour(unix_t), minute(unix_t), second(unix_t), unix_ms); //Get time
   
   //Enter low power state while waiting for sensors to get recordings
 //  if(color_integration_value[color_integration_index] > light_integration_value[light_integration_index]) timer.setTimer((uint16_t) (color_integration_value[color_integration_index] + 1));
@@ -566,6 +570,11 @@ delay(701);
   //End of log
   log_internal_count++; //Increment log counter
   internal_log_buffer[log_internal_index++] = 0; //Add null to end of log string
+  if(saveToSD(log_dir, current_file_name, (char *) internal_log_buffer, log_internal_count)){
+    log_internal_index = 0;
+    internal_log_buffer[0] = 0;
+    log_internal_count = 0;
+  }
 }
 
 void initializeLog(){
@@ -778,7 +787,7 @@ void initializeDevice(){
   lcd.println("Setting color sensor");
   if(color_sensor.begin(0x29, color_port)){
     uint16_t test_channel, dummy_channel;
-    strcpy(boot_disp[boot_index++], "Color sensor...OK  ");
+    strcpy(boot_disp[boot_index++], "Color sensor...OK   ");
     color_present = true;
     color_on = true;
 
@@ -928,7 +937,7 @@ void initializeDevice(){
   
   //Save current boot log
   sprintf(current_file_name, "%02d%02d%02d%c%c.txt", year(unix_t)-2000, month(unix_t), day(unix_t), (log_file_count/26)+97, (log_file_count%26)+97); 
-  boot_file_saved = saveToSD(boot_dir, current_file_name, (char *) boot_disp, boot_index, LCD_dim_x);
+  boot_file_saved = saveToSD(boot_dir, current_file_name, (char *) boot_disp, boot_index);
   if(!boot_file_saved){
     strcpy(boot_disp[boot_index++], "Boot save FAIL!     ");
   }
@@ -1036,15 +1045,18 @@ char autoGain(char sensor, uint16_t test_channel){
   return 'c'; //Tell calling function that exposure was changed 
 }
 
-//Get the RTC time sub-second component
-uint16_t RTCms(){
-  uint32_t read1, read2,secs,us;
-  
-  //Get RTC with ms precision - code from: https://github.com/manitou48/teensy3/blob/master/RTCms.ino
+//Sync the global unix_t and unix_ms - Get RTC with ms precision - code from: https://github.com/manitou48/teensy3/blob/master/RTCms.ino
+void RTCms(){
+  uint32_t read1, read2, us;
   do{
-      read1 = RTC_TPR;
-      read2 = RTC_TPR;
-  }while( read1 != read2);       //insure the same read twice to avoid 'glitches'
+        read1 = RTC_TSR;
+        read2 = RTC_TSR;
+    }while( read1 != read2);       //insure the same read twice to avoid 'glitches'
+    unix_t = read1;
+    do{
+        read1 = RTC_TPR;
+        read2 = RTC_TPR;
+    }while( read1 != read2);       //insure the same read twice to avoid 'glitches'
   //Scale 32.768KHz to microseconds, but do the math within 32bits by leaving out 2^6
   // 30.51758us per TPR count
   us = (read1*(1000000UL/64)+16384/64)/(32768/64);    //Round crystal counts to microseconds
@@ -1056,7 +1068,7 @@ uint16_t RTCms(){
     }while( read1 != read2);       //insure the same read twice to avoid 'glitches'
     unix_t = read1; //Update the unix_t global variable
   }
-  return(us/1000);
+  unix_ms = us/1000;
 }
 
 time_t getTeensy3Time(){
@@ -1094,9 +1106,8 @@ float checkVin(){
 }
 
 //Save data to the SD card
-boolean saveToSD(char (*dir), char (*file_name), char *data_array, int n_lines, int n_col){
+boolean saveToSD(char (*dir), char (*file_name), char *data_array, int n_lines){
   char file_path[100];
-  char data_line[n_col+1];
   int i = -1;
   int j = -1;
   File f;
@@ -1114,11 +1125,12 @@ boolean saveToSD(char (*dir), char (*file_name), char *data_array, int n_lines, 
     f = SD.open(file_path, FILE_WRITE);
     if(f){
       for(int a=0; a<n_lines; a++){
-        for(int b=0; b<n_col; b++){
-          data_line[b] = *((data_array + a*n_col) + b);
+        while(*data_array){ //Stream data to file until a null character is reached
+          f.print(*data_array);
+          data_array++; //Increment array pointer
         }
-        data_line[n_col] = 0; //Force termination at end of string - prevent overlfow issues
-        f.println(data_line);
+        f.println();
+        data_array++;
       }
       f.close(); //File timestamp applied on close (save)
       return true;
