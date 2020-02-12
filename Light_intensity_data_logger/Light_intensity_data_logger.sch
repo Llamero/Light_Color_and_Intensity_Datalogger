@@ -712,8 +712,6 @@ F 3 "" H 2050 2300 50  0001 C CNN
 	1    2050 2300
 	0    -1   -1   0   
 $EndComp
-Text Label 4900 5150 2    50   ~ 0
-LED-
 Text Label 10600 4600 0    50   ~ 0
 3v3
 NoConn ~ 8300 4400

@@ -171,5 +171,6 @@ class Adafruit_TSL2591 : public Adafruit_Sensor
   int32_t _sensorID;
 
   boolean _initialized;
+  boolean _enabled;
 };
 #endif

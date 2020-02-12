@@ -359,6 +359,18 @@ void Adafruit_BME280::takeForcedMeasurement() {
   }
 }
 
+//Allow multiple sensors to start recording without additional delay
+void Adafruit_BME280::takeForcedMeasurementWithoutDelay() {
+  // If we are in forced mode, the BME sensor goes back to sleep after each
+  // measurement and we need to set it to forced mode once at this point, so
+  // it will take the next measurement and then return to sleep again.
+  // In normal mode simply does new measurements periodically.
+  if (_measReg.mode == MODE_FORCED) {
+    // set to forced mode, i.e. "take next measurement"
+    write8(BME280_REGISTER_CONTROL, _measReg.get());
+  }
+}
+
 /*!
  *   @brief  Reads the factory-set coefficients
  */

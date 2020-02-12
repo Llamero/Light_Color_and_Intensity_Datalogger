@@ -65,6 +65,7 @@
 Adafruit_TSL2591::Adafruit_TSL2591(int32_t sensorID)
 {
   _initialized = false;
+  _enabled = false;
   _integration = TSL2591_INTEGRATIONTIME_100MS;
   _gain        = TSL2591_GAIN_MED;
   _sensorID    = sensorID;
@@ -142,6 +143,8 @@ void Adafruit_TSL2591::enable(void)
   // Enable the device by setting the control bit to 0x01
   write8(TSL2591_COMMAND_BIT | TSL2591_REGISTER_ENABLE,
    TSL2591_ENABLE_POWERON | TSL2591_ENABLE_AEN | TSL2591_ENABLE_AIEN | TSL2591_ENABLE_NPIEN);
+
+   _enabled = true;
 }
 
 
@@ -160,6 +163,8 @@ void Adafruit_TSL2591::disable(void)
 
   // Disable the device by setting the control bit to 0x00
   write8(TSL2591_COMMAND_BIT | TSL2591_REGISTER_ENABLE, TSL2591_ENABLE_POWEROFF);
+
+  _enabled = false;
 }
 
 /************************************************************************/
@@ -325,13 +330,16 @@ uint32_t Adafruit_TSL2591::getFullLuminosity (void)
     }
   }
 
-  // Enable the device
-  enable();
-  
-  // Wait x ms for ADC to complete
-  for (uint8_t d=0; d<=_integration; d++)
-  {
-    delay(120);
+  //Add option to enable the device ahead of time - allows for queueing multiple sensors at the same time
+  if(!_enabled){
+    // Enable the device
+    enable();
+    
+    // Wait x ms for ADC to complete
+    for (uint8_t d=0; d<=_integration; d++)
+    {
+      delay(120);
+    }
   }
 
   // CHAN0 must be read before CHAN1
@@ -347,6 +355,7 @@ uint32_t Adafruit_TSL2591::getFullLuminosity (void)
 
   return x;
 }
+
 
 /************************************************************************/
 /*!

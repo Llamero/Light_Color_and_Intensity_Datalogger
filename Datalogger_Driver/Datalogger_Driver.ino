@@ -252,7 +252,7 @@ TwoWire* color_port = &Wire;
 TwoWire* light_port = &Wire1;
 
 //Sensor settings:
-const uint8_t color_gain_value[] = {1, 4, 16, 60};
+const float color_gain_value[] = {1, 4, 16, 60};
 const uint8_t color_gain_command[] = {0x00, 0x01, 0x02, 0x03}; 
 const uint8_t color_max_index = sizeof(color_gain_value)/sizeof(color_gain_value[0])-1;
 uint8_t color_gain_index = color_max_index; //Start at maximum sensitivity
@@ -270,7 +270,7 @@ const float IR_gain_value[] = {1, 24.5, 400, 9900};
 const uint8_t light_gain_command[] = {0x00, 0x10, 0x20, 0x30}; 
 const uint8_t light_max_index = sizeof(vis_gain_value)/sizeof(vis_gain_value[0])-1;
 uint8_t light_gain_index = light_max_index; //Start at maximum sensitivity
-const float light_integration_value[] = {100, 200, 400, 600};
+const uint16_t light_integration_value[] = {100, 200, 400, 600};
 const uint8_t light_integration_command[] = {0x00, 0x01, 0x03, 0x05};
 const uint16_t light_integration_max_count[] = {36863, 65535, 65535, 65535}; //Max ADC count for given integration time 
 uint8_t light_integration_index = light_max_index; //Start at maximum sensitivity
@@ -323,12 +323,12 @@ char *LCD_windows[] = {(char *) boot_disp, (char *) log_disp, (char *) settings_
 uint8_t LCD_window_index = 0; //Current LCD window being displayed
 uint8_t LCD_line_index = 0; //Current index of top line being displayed
 uint8_t LCD_window_lines[] = {boot_dim_y, log_disp_dim_y, settings_dim_y}; //Array of total number of lines for each window
-const char log_header[] = "Date,Time,Temperature(°C),Pressure(hPa),Humidity(%),Intensity(lux),Red(µW/cm^2),Green(µW/cm^2),Blue(µW/cm^2),Clear(µW/cm^2),Vin(V),Vbat(V),Comment,";
+const char log_header[] = "Date,Time,Temperature(°C),Pressure(hPa),Humidity(%),Light_Full_Gain,Light_IR_Gain,Light_Integration(ms),Light_Full_ADC,Light_IR_ADC,RGB_Gain,RGB_Integration(ms),Red_ADC,Green_ADC,Blue_ADC,Clear_ADC,Vin(V),Vbat(V),Comment,";
 const uint8_t n_log_columns = 13; //Number of items to log per round
 uint8_t boot_index = 0; //Index of boot message
 int warning_count = 0; //Number of warnings encountered during boot 
 const uint32_t internal_log_size = 100000; //Maximum number of bytes to be stored internally
-volatile char internal_log_backup[internal_log_size]; //Array for storing data logs while SD card is not available 
+volatile char internal_log_buffer[internal_log_size]; //Array for storing data logs while SD card is not available 
 uint32_t log_internal_index = 0; //Index of internal log string
 uint32_t log_internal_count = 0; //Number of stings that have been added to internal log
 uint16_t log_file_index = 0; //Index of current line in log file
@@ -361,38 +361,41 @@ uint32_t counter = 0;
 void setup() {
   initializeDevice();
   initializeLog();
-    pinMode(temp_power_pin, OUTPUT);
-    pinMode(color_power_pin, OUTPUT);
-    pinMode(light_power_pin, OUTPUT);
-    pinMode(I2C_pullup_pin, OUTPUT);
-    digitalWriteFast(temp_power_pin, (measure_temp || measure_humidity || measure_pressure)); //Power BME280 if any evironmental variable is to be sensed
-    digitalWriteFast(color_power_pin, measure_color);
-    digitalWriteFast(light_power_pin, measure_lux);
-    digitalWriteFast(I2C_pullup_pin, (measure_temp || measure_humidity || measure_pressure || measure_lux || measure_color));
 }
 
 void loop() {
   uint8_t wakeup_source = 0;
-  
-  //If an initial timer time has been set, increment timer time
-  wakeup_source = Snooze.hibernate(hibernate_config);
-  unix_t = now(); //Update to current RTC time
-  if(wakeup_source <= 33) delay(debounce);
-  wakeupEvent(wakeup_source);
-
+  uint32_t index = 0;
+  counter++;
+//  lcd.setCursor(0,0);
+//  lcd.print(next_log_time);
+//  lcd.setCursor(0,2);
+//  lcd.print(RTCms());
+//  lcd.setCursor(0,1);
+//  lcd.print(unix_t);
+//  //If an initial timer time has been set, increment timer time
+//  wakeup_source = Snooze.hibernate(hibernate_config);
+//  unix_t = now(); //Update to current RTC time
+//  if(wakeup_source <= 33) delay(debounce);
+//  wakeupEvent(wakeup_source);
+  logEvent();
+  if(log_internal_count){
+    while(log_internal_count--){
+      while(internal_log_buffer[index]){
+        Serial.print(internal_log_buffer[index++]);
+      }
+      Serial.println();
+      index++;
+    }
+    log_internal_index = 0;
+    internal_log_buffer[0] = 0;
+  }  
 }
 
 void wakeupEvent(uint8_t src){
   //joystick_pins[] = {9, 11, 2, 7, 10}; //Joystick pins - up, right, down, left, push 
   if(src > 33){ //If > 33 then trigger was a non-digital event such as RTC timer   
     if(log_next_wake){
-      lcd.setCursor(0,0);
-      lcd.print(next_log_time);
-      lcd.setCursor(0,1);
-      lcd.print(unix_t);
-      lcd.setCursor(0,2);
-      lcd.print(++counter);
- 
       if(log_active){ 
              
       }
@@ -458,15 +461,18 @@ void centerPress(uint8_t src){
 
 //Increment timer and sync to RTC;
 void setHibernateTimer(){
+  uint32_t read1, read2, secs, us;
   uint16_t ms_remaining = 0;
-  time_remaining  = next_log_time - unix_t;
+  unix_t = now();
+  
   if(next_log_time > unix_t){ //If time is still remaining
     if(time_remaining >= 120){
       timer.setTimer(60000);
       log_next_wake = false;
     }
     else{
-      ms_remaining = (time_remaining * 1000) - log_offset; //Subtract offset to ensure device wakes with enough time to measure log point
+      ms_remaining = RTCms(); //Get RTCms first as it will also automatically update unix_t if a rollover happened
+      ms_remaining = ((next_log_time - unix_t) * 1000) - ms_remaining; //calculate ms remaining to next log time
       timer.setTimer(ms_remaining);
       log_next_wake = true;
     }
@@ -502,19 +508,69 @@ void toggleLog(){
 }
 
 void logEvent(){
+  uint8_t wakeup_source;
+  uint16_t r, g, b, c, full, IR;
+  uint32_t lum;
+  float temp, pres, hum, Vbat, Vin;
+  char response = ' ';
+  
+  //Start up sensor readings
+  digitalWriteFast(I2C_pullup_pin, HIGH); //Pullup the I2C line
+  delay(1); 
+  color_sensor.enableWithoutDelay(); //This reading takes the longest so queue first, read last
+  light_sensor.enable(); //Start light sensor recording
+  temp_sensor.takeForcedMeasurementWithoutDelay(); //Start temp sensor recording
+  digitalWriteFast(I2C_pullup_pin, LOW); //Power down I2C line
+  
   //Add date and time to log
-  log_internal_index += snprintf(internal_log_backup+log_internal_index, internal_log_size-log_internal_index, 
+  unix_t = now();
+  log_internal_index += snprintf(internal_log_buffer+log_internal_index, internal_log_size-log_internal_index, 
   "%4d/%02d/%02d," //log date
-  "%02d:%02d:%02d," //log time
-  , year(next_log_time), month(next_log_time), day(next_log_time), //Get date
-  hour(next_log_time), minute(next_log_time), second(next_log_time)); //Get time
-  log_internal_count++; 
-  internal_log_backup[log_internal_index++] = 0;
+  "%02d:%02d:%02d.%03d," //log time
+  , year(unix_t), month(unix_t), day(unix_t), //Get date
+  hour(unix_t), minute(unix_t), second(unix_t), RTCms()); //Get time
+  
+  //Enter low power state while waiting for sensors to get recordings
+//  if(color_integration_value[color_integration_index] > light_integration_value[light_integration_index]) timer.setTimer((uint16_t) (color_integration_value[color_integration_index] + 1));
+//  else timer.setTimer((uint16_t) (light_integration_value[light_integration_index] + 1)); 
+//  while(wakeup_source < 34) wakeup_source = Snooze.hibernate(hibernate_config); //Enter low power state while waiting for sensors to record data - ignore digital interrupts
+delay(701);
+
+  //Retrieve sensor data
+  digitalWriteFast(I2C_pullup_pin, HIGH); //Pullup the I2C line
+  delay(1);
+  Vbat = checkVbat();
+  Vin = checkVin();    
+  temp = temp_sensor.readTemperature();
+  pres = (temp_sensor.readPressure() / 100.0F);
+  hum = temp_sensor.readHumidity(); 
+  lum = light_sensor.getFullLuminosity();
+  full = (uint16_t) (lum & 0xFFFF);
+  IR = (uint16_t) (lum >> 16);
+  response = autoGain('l', full); //Adjust gain if necessary
+  color_sensor.getRawDataWithoutDelay(&r, &g, &b, &c);
+  response = autoGain('c', c); //Adjust gain if necessary
+  digitalWriteFast(I2C_pullup_pin, LOW); //Power down I2C line
+
+  //Print sensor data to log buffer
+  log_internal_index += snprintf(internal_log_buffer+log_internal_index, internal_log_size-log_internal_index, 
+  "%.2f,%.2f,%.2f," //Temp, pressure, and humidity
+  "%.6g,%.6g,%d,%d,%d," //Light: Full Gain, IR Gain, Integration, Full ADC, IR ADC
+  "%.6g,%d,%d,%d,%d,%d," //Color: Gain, Integration, Red ADC, Green ADC, Blue ADC, Clear ADC
+  "%.3f,%.3f,%c" //Battery: Vin, Vbat and print comment
+  , temp, pres, hum, //Temp sensor
+  vis_gain_value[light_gain_index], IR_gain_value[light_gain_index], light_integration_value[light_integration_index], full, IR, //Light sensor
+  color_gain_value[color_gain_index], color_integration_value[color_integration_index], r, g, b, c, //Light sensor 
+  Vbat, Vin, response); //Battry values
+  
+  //End of log
+  log_internal_count++; //Increment log counter
+  internal_log_buffer[log_internal_index++] = 0; //Add null to end of log string
 }
 
 void initializeLog(){
   //Initialize logging variables
-  internal_log_backup[0] = 0;
+  internal_log_buffer[0] = 0;
   log_internal_index = 0;
   log_internal_count = 0;
   log_file_index = 0;
@@ -523,8 +579,8 @@ void initializeLog(){
   next_log_time = unix_t;
 
   //Add header to log queue
-  log_internal_index += snprintf(internal_log_backup+log_internal_index, internal_log_size-log_internal_index, log_header);
-  internal_log_backup[log_internal_index++] = 0;
+  log_internal_index += snprintf(internal_log_buffer+log_internal_index, internal_log_size-log_internal_index, log_header);
+  internal_log_buffer[log_internal_index++] = 0;
   log_internal_count++; 
 
   logEvent();
@@ -695,12 +751,21 @@ void initializeDevice(){
     display_on = false;
     backlight_on = false;
   }
-
+  lcd.setCursor(0,0);
+  lcd.println("Booting logger...");
+  
   //Initialize sensors
   if(temp_sensor.begin(0x77, temp_port)){
     strcpy(boot_disp[boot_index++], "Temp sensor....OK   ");
     temp_present = true;
     temp_on = true;
+
+    //Set sensor to run in forced mode without filtering or oversampling
+    temp_sensor.setSampling(Adafruit_BME280::MODE_FORCED,
+                Adafruit_BME280::SAMPLING_X1, // temperature
+                Adafruit_BME280::SAMPLING_X1, // pressure
+                Adafruit_BME280::SAMPLING_X1, // humidity
+                Adafruit_BME280::FILTER_OFF   );
   }
   else{
     strcpy(boot_disp[boot_index++], "Temp sensor....FAIL!");
@@ -709,13 +774,20 @@ void initializeDevice(){
     temp_present = false;
     temp_on = false;
   }
+  lcd.setCursor(0,1);
+  lcd.println("Setting color sensor");
   if(color_sensor.begin(0x29, color_port)){
-    uint16_t color[4];
-    uint16_t max_value = 0;
-    uint8_t max_index = 0;
+    uint16_t test_channel, dummy_channel;
     strcpy(boot_disp[boot_index++], "Color sensor...OK  ");
     color_present = true;
     color_on = true;
+
+    //Set gain and integration time
+    color_sensor.setGain(color_gain_command[color_gain_index]);
+    color_sensor.setIntegrationTime(color_integration_command[color_integration_index]);
+    color_sensor.getRawData(&dummy_channel, &dummy_channel, &dummy_channel, &test_channel);
+    color_sensor.getRawData(&dummy_channel, &dummy_channel, &dummy_channel, &test_channel);
+    autoGain('c', test_channel);   
   }
   else{
     strcpy(boot_disp[boot_index++], "Color sensor...FAIL!");
@@ -724,12 +796,21 @@ void initializeDevice(){
     color_present = false;
     color_on = false;
   }
+  lcd.setCursor(0,2);
+  lcd.println("Setting light sensor");
   if(light_sensor.begin(light_port)){
+    uint16_t test_channel;
+    uint32_t lum;
     strcpy(boot_disp[boot_index++], "Light sensor...OK   ");
     light_present = true;
     light_on = true;
+
+    //Set gain and integration time
     light_sensor.setGain(light_gain_command[light_gain_index]);
     light_sensor.setTiming(light_integration_command[light_integration_index]);
+    lum = light_sensor.getFullLuminosity();
+    test_channel = lum & 0xFFFF;
+    autoGain('l', test_channel);    
   }
   else{
     strcpy(boot_disp[boot_index++], "Light sensor...FAIL!");
@@ -762,6 +843,8 @@ void initializeDevice(){
   SdFile::dateTimeCallback(dateTime);
 
   //Test SD card
+  lcd.setCursor(0,3);
+  lcd.println("Checking SD card");
   if (card.init(SPI_HALF_SPEED, chipSelect)) { //Check if SD card is present
     strcpy(boot_disp[boot_index++], "SD card found       ");
   }
@@ -927,7 +1010,7 @@ char autoGain(char sensor, uint16_t test_channel){
       else return 'm'; //Otherwise, tell calling function that the sensor is already at max gain and integration time;
     }
     else{ //If no change needs to be made, return 0
-      if(counter == start_counter) return 0;
+      if(counter == start_counter) return 'z';
     }
     
     //Get sensor readings and update over and under exposure values
@@ -953,14 +1036,27 @@ char autoGain(char sensor, uint16_t test_channel){
   return 'c'; //Tell calling function that exposure was changed 
 }
 
-
-
-//Set upper and lower interrupt limits
-void setIntLimits(char sensor){
-  float ratio;
-  if(sensor == 'c'){
-    
+//Get the RTC time sub-second component
+uint16_t RTCms(){
+  uint32_t read1, read2,secs,us;
+  
+  //Get RTC with ms precision - code from: https://github.com/manitou48/teensy3/blob/master/RTCms.ino
+  do{
+      read1 = RTC_TPR;
+      read2 = RTC_TPR;
+  }while( read1 != read2);       //insure the same read twice to avoid 'glitches'
+  //Scale 32.768KHz to microseconds, but do the math within 32bits by leaving out 2^6
+  // 30.51758us per TPR count
+  us = (read1*(1000000UL/64)+16384/64)/(32768/64);    //Round crystal counts to microseconds
+  if( us < 100 ) //if prescaler just rolled over from zero, might have just incremented seconds -- refetch
+  {
+    do{
+        read1 = RTC_TSR;
+        read2 = RTC_TSR;
+    }while( read1 != read2);       //insure the same read twice to avoid 'glitches'
+    unix_t = read1; //Update the unix_t global variable
   }
+  return(us/1000);
 }
 
 time_t getTeensy3Time(){

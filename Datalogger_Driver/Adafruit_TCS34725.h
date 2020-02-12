@@ -178,6 +178,7 @@ public:
   void setIntegrationTime(tcs34725IntegrationTime_t it);
   void setGain(tcs34725Gain_t gain);
   void getRawData(uint16_t *r, uint16_t *g, uint16_t *b, uint16_t *c);
+  void getRawDataWithoutDelay(uint16_t *r, uint16_t *g, uint16_t *b, uint16_t *c);
   void getRGB(float *r, float *g, float *b);
   void getRawDataOneShot(uint16_t *r, uint16_t *g, uint16_t *b, uint16_t *c);
   uint16_t calculateColorTemperature(uint16_t r, uint16_t g, uint16_t b);
@@ -191,12 +192,14 @@ public:
   void clearInterrupt();
   void setIntLimits(uint16_t l, uint16_t h);
   void enable();
+  void enableWithoutDelay();
   void disable();
 
 private:
   TwoWire *_wire;
   uint8_t _i2caddr;
   boolean _tcs34725Initialised;
+  boolean _enabled;
   tcs34725Gain_t _tcs34725Gain;
   tcs34725IntegrationTime_t _tcs34725IntegrationTime;
 };

@@ -226,6 +226,7 @@ public:
                    standby_duration duration = STANDBY_MS_0_5);
 
   void takeForcedMeasurement();
+  void takeForcedMeasurementWithoutDelay();
   float readTemperature(void);
   float readPressure(void);
   float readHumidity(void);

@@ -147,6 +147,13 @@ void Adafruit_TCS34725::enable() {
   }
 }
 
+//Add option to enable without delay to queue up multiple different sensor reads simultaneously
+void Adafruit_TCS34725::enableWithoutDelay() {
+  write8(TCS34725_ENABLE, TCS34725_ENABLE_PON);
+  delay(3);
+  write8(TCS34725_ENABLE, TCS34725_ENABLE_PON | TCS34725_ENABLE_AEN);
+}
+
 /*!
  *  @brief  Disables the device (putting it in lower power sleep mode)
  */
@@ -308,6 +315,17 @@ void Adafruit_TCS34725::getRawData(uint16_t *r, uint16_t *g, uint16_t *b,
     delay(700);
     break;
   }
+}
+
+void Adafruit_TCS34725::getRawDataWithoutDelay(uint16_t *r, uint16_t *g, uint16_t *b,
+                                   uint16_t *c) {
+  if (!_tcs34725Initialised)
+    begin();
+
+  *c = read16(TCS34725_CDATAL);
+  *r = read16(TCS34725_RDATAL);
+  *g = read16(TCS34725_GDATAL);
+  *b = read16(TCS34725_BDATAL);
 }
 
 /*!
