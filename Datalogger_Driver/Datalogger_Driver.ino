@@ -373,32 +373,13 @@ void setup() {
 
 void loop() {
   uint8_t wakeup_source = 0;
-  uint32_t lum;
-  uint16_t test_channel, dummy_channel;
-  char response;
   
   //If an initial timer time has been set, increment timer time
-//  wakeup_source = Snooze.hibernate(hibernate_config);
-//  unix_t = now(); //Update to current RTC time
-//  if(wakeup_source <= 33) delay(debounce);
-//  wakeupEvent(wakeup_source);
-    lum = light_sensor.getFullLuminosity();
-    test_channel = lum & 0xFFFF;
-    Serial.print("Light: ");
-    Serial.print("ADC input: ");
-    Serial.print(test_channel);
-    Serial.print(", ");
-    response = autoGain('l', test_channel);
-    Serial.print("Response: ");
-    Serial.println(response);
-    color_sensor.getRawData(&dummy_channel, &dummy_channel, &dummy_channel, &test_channel);
-    Serial.print("Color: ");
-    Serial.print("ADC input: ");
-    Serial.print(test_channel);
-    Serial.print(", ");
-    response = autoGain('c', test_channel);
-    Serial.print("Response: ");
-    Serial.println(response);
+  wakeup_source = Snooze.hibernate(hibernate_config);
+  unix_t = now(); //Update to current RTC time
+  if(wakeup_source <= 33) delay(debounce);
+  wakeupEvent(wakeup_source);
+
 }
 
 void wakeupEvent(uint8_t src){
@@ -903,14 +884,15 @@ char autoGain(char sensor, uint16_t test_channel){
   uint32_t lum; //Light sensor returns to channels as a concatenated 32-bit value that needs to be split
   uint16_t dummy_channel;
   uint16_t *over_exposed, *under_exposed;
-  uint8_t counter, max_index;
+  uint8_t counter, start_counter, max_index;
   uint8_t *gain_index, *integration_index, *gain_command, *integration_command;
-  unix_t = next_log_time-2; //Initialize unix-t to the past so at least one gain adjustment is performed
+  unix_t = now();
   
 
   //Get sensor settings
   if(sensor == 'c'){
     counter = 2*(color_max_index+1)+1; //Sanity check to stop loop after all possible changes have been made
+    start_counter = counter; 
     gain_index = &color_gain_index;
     integration_index = &color_integration_index;
     over_exposed = &color_over_exposed;
@@ -921,6 +903,7 @@ char autoGain(char sensor, uint16_t test_channel){
   }
   else{
     counter = 2*(light_max_index+1)+1;
+    start_counter = counter; 
     gain_index = &light_gain_index;
     integration_index = &light_integration_index;
     over_exposed = &light_over_exposed;
@@ -929,73 +912,48 @@ char autoGain(char sensor, uint16_t test_channel){
     gain_command = light_gain_command;
     integration_command = light_integration_command;
   }
-
-  Serial.print("ADC: ");
-  Serial.print(test_channel);
-  Serial.print(", Gain Index: ");
-  Serial.print(*gain_index);
-  Serial.print(", Int Index: ");
-  Serial.print(*integration_index);
-  Serial.print(", over exp: ");
-  Serial.print(*over_exposed);
-  Serial.print(", under exp: ");
-  Serial.print(*under_exposed);
-  Serial.print(", counter: ");
-  Serial.print(counter);
-    
+   
   //Adjust the gain as if reading is out of range as long as exposure can still be adjusted - timeout at log interval if logging 
-  if((test_channel > *over_exposed && *integration_index) || (test_channel < *under_exposed  && *gain_index < max_index)){
-    while(counter-- && (unix_t < next_log_time-1 || !log_active) && (test_channel > *over_exposed && *integration_index) || (test_channel < *under_exposed  && *gain_index < max_index)){
-      //Adjust exposure index based on sensor reading if there is still adjustment range left
-      if(test_channel > *over_exposed){
-        if(*gain_index) --*gain_index;
-        else if(*integration_index) --*integration_index;
-        else return 's'; //Otherwise, tell calling function that the sensor is saturated
-      }
-      else if(test_channel < *under_exposed)
-        if(*integration_index < max_index) ++*integration_index;
-        else if(*gain_index < max_index) ++*gain_index;
-        else return 'm'; //Otherwise, tell calling function that the sensor is already at max gain and integration time;
-      
-      //Get sensor readings and update over and under exposure values
-      if(sensor == 'c'){
-        color_sensor.setGain(color_gain_command[*gain_index]);
-        color_sensor.setIntegrationTime(color_integration_command[*integration_index]);
-        color_sensor.getRawData(&dummy_channel, &dummy_channel, &dummy_channel, &test_channel);
-        delay(100);
-        color_sensor.getRawData(&dummy_channel, &dummy_channel, &dummy_channel, &test_channel);
-        *over_exposed = color_integration_max_count[color_integration_index] >> color_over_shift;
-        *under_exposed = color_integration_max_count[color_integration_index] >> color_under_shift;  //Exposure steps in 2^4 so min is 1 + 2^(4) + 1 = >>6  
-      }
-      else{
-        light_sensor.setGain(light_gain_command[*gain_index]);
-        light_sensor.setTiming(light_integration_command[*integration_index]);
-        lum = light_sensor.getFullLuminosity();
-        test_channel = lum & 0xFFFF;
-        *over_exposed = light_integration_max_count[light_integration_index] >> light_over_shift;
-        *under_exposed = light_integration_max_count[light_integration_index] >> light_under_shift; //Gain steps in 2^5 so min is 1 + 2^(5) + 1 = >>7
-      }
-      unix_t = now(); //Update the clock
-      Serial.println();
-      Serial.println("------ADJUST-----");
-      Serial.print("ADC: ");
-      Serial.print(test_channel);
-      Serial.print(", Gain Index: ");
-      Serial.print(*gain_index);
-      Serial.print(", Int Index: ");
-      Serial.print(*integration_index);
-      Serial.print(", over exp: ");
-      Serial.print(*over_exposed);
-      Serial.print(", under exp: ");
-      Serial.print(*under_exposed);
-      Serial.print(", counter: ");
-      Serial.print(counter);
+  do{ //Use do/while to ensure the value is checked at least once before adjusting the gain
+    //Adjust exposure index based on sensor reading if there is still adjustment range left
+    if(test_channel > *over_exposed){
+      if(*gain_index) --*gain_index;
+      else if(*integration_index) --*integration_index;
+      else return 's'; //Otherwise, tell calling function that the sensor is saturated
     }
-    return 'c'; //Tell calling function that exposure was changed 
-  }
-  return 0; //Otherwise, tell calling function that no change was made
-
+    else if(test_channel < *under_exposed){
+      if(*integration_index < max_index) ++*integration_index;
+      else if(*gain_index < max_index) ++*gain_index;
+      else return 'm'; //Otherwise, tell calling function that the sensor is already at max gain and integration time;
+    }
+    else{ //If no change needs to be made, return 0
+      if(counter == start_counter) return 0;
+    }
+    
+    //Get sensor readings and update over and under exposure values
+    if(sensor == 'c'){
+      color_sensor.setGain(color_gain_command[*gain_index]);
+      color_sensor.setIntegrationTime(color_integration_command[*integration_index]);
+      color_sensor.getRawData(&dummy_channel, &dummy_channel, &dummy_channel, &test_channel);
+      color_sensor.getRawData(&dummy_channel, &dummy_channel, &dummy_channel, &test_channel);
+      *over_exposed = color_integration_max_count[color_integration_index] >> color_over_shift;
+      *under_exposed = color_integration_max_count[color_integration_index] >> color_under_shift;  //Exposure steps in 2^4 so min is 1 + 2^(4) + 1 = >>6  
+    }
+    else{
+      light_sensor.setGain(light_gain_command[*gain_index]);
+      light_sensor.setTiming(light_integration_command[*integration_index]);
+      lum = light_sensor.getFullLuminosity();
+      test_channel = lum & 0xFFFF;
+      *over_exposed = light_integration_max_count[light_integration_index] >> light_over_shift;
+      *under_exposed = light_integration_max_count[light_integration_index] >> light_under_shift; //Gain steps in 2^5 so min is 1 + 2^(5) + 1 = >>7
+    }
+    unix_t = now(); //Update the clock
+  } while(counter-- && (unix_t < next_log_time-1 || !log_active) && (test_channel > *over_exposed && *integration_index) || (test_channel < *under_exposed  && *gain_index < max_index));
+  
+  return 'c'; //Tell calling function that exposure was changed 
 }
+
+
 
 //Set upper and lower interrupt limits
 void setIntLimits(char sensor){
