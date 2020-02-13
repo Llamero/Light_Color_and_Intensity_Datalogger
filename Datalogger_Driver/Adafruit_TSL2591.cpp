@@ -324,6 +324,9 @@ float Adafruit_TSL2591::calculateLux(uint16_t ch0, uint16_t ch1)
 /**************************************************************************/
 uint32_t Adafruit_TSL2591::getFullLuminosity (void)
 {
+  uint32_t x;
+  uint16_t y;
+  
   if (!_initialized) {
     if (!begin()) {
       return 0;
@@ -340,18 +343,22 @@ uint32_t Adafruit_TSL2591::getFullLuminosity (void)
     {
       delay(120);
     }
+    // CHAN0 must be read before CHAN1
+    // See: https://forums.adafruit.com/viewtopic.php?f=19&t=124176
+  
+    y = read16(TSL2591_COMMAND_BIT | TSL2591_REGISTER_CHAN0_LOW);
+    x = read16(TSL2591_COMMAND_BIT | TSL2591_REGISTER_CHAN1_LOW);
+    x <<= 16;
+    x |= y;
+    disable();
+  }
+  else{
+    y = read16(TSL2591_COMMAND_BIT | TSL2591_REGISTER_CHAN0_LOW);
+    x = read16(TSL2591_COMMAND_BIT | TSL2591_REGISTER_CHAN1_LOW);
+    x <<= 16;
+    x |= y;
   }
 
-  // CHAN0 must be read before CHAN1
-  // See: https://forums.adafruit.com/viewtopic.php?f=19&t=124176
-  uint32_t x;
-  uint16_t y;
-  y = read16(TSL2591_COMMAND_BIT | TSL2591_REGISTER_CHAN0_LOW);
-  x = read16(TSL2591_COMMAND_BIT | TSL2591_REGISTER_CHAN1_LOW);
-  x <<= 16;
-  x |= y;
-
-  disable();
 
   return x;
 }

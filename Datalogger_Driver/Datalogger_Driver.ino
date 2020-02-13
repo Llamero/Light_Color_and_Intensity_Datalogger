@@ -10,7 +10,7 @@
 
 //Setup default parameters
 uint16_t n_logs_per_file = 10000; //The number of logs to save to a file before creating a new low file
-uint8_t log_interval_array[] = {0, 0, 5}; //Number of hours, minutes, and seconds between log intervals
+uint8_t log_interval_array[] = {0, 0, 2}; //Number of hours, minutes, and seconds between log intervals
 const char boot_dir[] = "boot_log"; //Directory to save boot log files into - max length 8 char
 const char log_dir[] = "data_log"; //Directory to save data log files into - max length 8 char
 boolean measure_temp = true;
@@ -32,7 +32,8 @@ const float default_contrast = 0.5; //Set default LCD contrast to half range (ra
 // Load drivers
 SnoozeDigital digital;
 SnoozeTimer timer;
-SnoozeBlock hibernate_config(digital, timer);
+SnoozeBlock hibernate_config_both(digital, timer);
+SnoozeBlock hibernate_config_timer_only(timer);
 time_t unix_t = 0; //Track current device time
 uint16_t unix_ms = 0; //Current time in ms
 time_t next_log_time = 0; //next log time in unix time
@@ -310,6 +311,7 @@ boolean light_present = false;
 boolean light_on = false;
 boolean coin_present = false;
 boolean SD_present = false;
+uint8_t wakeup_source; //Source of wake from hibernate
 
 //File status
 const uint8_t boot_dim_y = 20; //Number of rows (total lines)
@@ -361,12 +363,9 @@ uint32_t log_display_counter = 0;
 
 void setup() {
   initializeDevice();
-  initializeLog();
-  lcd.clear();
 }
 
 void loop() {
-  uint8_t wakeup_source = 0;
   uint32_t index = 0;
   log_display_counter++;
 //  lcd.setCursor(0,0);
@@ -376,24 +375,15 @@ void loop() {
 //  lcd.setCursor(0,1);
 //  lcd.print(unix_t);
 //  //If an initial timer time has been set, increment timer time
-//  wakeup_source = Snooze.hibernate(hibernate_config);
-//  unix_t = now(); //Update to current RTC time
-//  if(wakeup_source <= 33) delay(debounce);
-//  wakeupEvent(wakeup_source);
-  logEvent();
-  if(log_internal_count){
-    while(log_internal_count--){
-      while(internal_log_buffer[index]){
-        Serial.print(internal_log_buffer[index++]);
-      }
-      Serial.println();
-      index++;
-    }
-    log_internal_index = 0;
-    internal_log_buffer[0] = 0;
-  }
-  lcd.setCursor(0,0);
-  lcd.print(log_display_counter);  
+  wakeup_source = Snooze.hibernate(hibernate_config_both);
+  unix_t = now(); //Update to current RTC time
+  if(wakeup_source <= 33) delay(debounce);
+  wakeupEvent(wakeup_source);
+//  if(log_active){
+//    if(!display_on) disableDisplay(false);
+//    lcd.setCursor(0,0);
+//    lcd.print(log_display_counter);
+//  }  
 }
 
 void wakeupEvent(uint8_t src){
@@ -401,7 +391,7 @@ void wakeupEvent(uint8_t src){
   if(src > 33){ //If > 33 then trigger was a non-digital event such as RTC timer   
     if(log_next_wake){
       if(log_active){ 
-             
+         logEvent();    
       }
       next_log_time += log_interval; //Increment log time to next time point - if point was missed, go to next point
     }
@@ -430,7 +420,7 @@ void wakeupEvent(uint8_t src){
 
 void centerPress(uint8_t src){
   //If center-press is held for more than 5 senconds, toggle log
-  char timer = '5';
+  char lcd_timer = '5';
   char line1[] = "START";
   char line2[] = "LOG";
   uint8_t index = 0;
@@ -438,8 +428,9 @@ void centerPress(uint8_t src){
   if(log_active) strcpy(line1, "STOP ");
   BigNumber_SendCustomChars(); //Export double line char table - https://www.instructables.com/id/Custom-Large-Font-For-16x2-LCDs/
   if(disable_display_on_log && log_active) disableDisplay(false);
-
-  while(timer > '0' && !digitalRead(src)){
+  timer.setTimer(1000);
+  
+  while(lcd_timer > '0' && !digitalRead(src)){
     lcd.clear();
     index = 0;
     col = 0;  
@@ -447,10 +438,10 @@ void centerPress(uint8_t src){
     index = 0;
     col = 0;
     while(line2[index]) col += DrawBigChar(col, 2, line2[index++]);
-    DrawBigChar(15, 2, timer--);
-    delay(1000);
+    DrawBigChar(15, 2, lcd_timer--);
+    wakeup_source = Snooze.hibernate(hibernate_config_timer_only); //Enter low power state during count down.
   }
-  if(timer == '0'){   
+  if(lcd_timer == '0'){   
     toggleLog();
   }
   else{
@@ -467,7 +458,7 @@ void centerPress(uint8_t src){
 void setHibernateTimer(){
   uint32_t read1, read2, secs, us;
   uint16_t ms_remaining = 0;
-  unix_t = now();
+  RTCms(); //Get current time
   
   if(next_log_time > unix_t){ //If time is still remaining
     if(time_remaining >= 120){
@@ -512,7 +503,6 @@ void toggleLog(){
 }
 
 void logEvent(){
-  uint8_t wakeup_source;
   uint16_t RTC_ms, r, g, b, c, full, IR;
   uint32_t lum;
   float temp, pres, hum, Vbat, Vin;
@@ -535,10 +525,9 @@ void logEvent(){
   hour(unix_t), minute(unix_t), second(unix_t), unix_ms); //Get time
   
   //Enter low power state while waiting for sensors to get recordings
-//  if(color_integration_value[color_integration_index] > light_integration_value[light_integration_index]) timer.setTimer((uint16_t) (color_integration_value[color_integration_index] + 1));
-//  else timer.setTimer((uint16_t) (light_integration_value[light_integration_index] + 1)); 
-//  while(wakeup_source < 34) wakeup_source = Snooze.hibernate(hibernate_config); //Enter low power state while waiting for sensors to record data - ignore digital interrupts
-delay(701);
+  if(color_integration_value[color_integration_index] > light_integration_value[light_integration_index]) timer.setTimer((uint16_t) (color_integration_value[color_integration_index] + 1));
+  else timer.setTimer((uint16_t) (light_integration_value[light_integration_index] + 1)); 
+  wakeup_source = Snooze.hibernate(hibernate_config_timer_only); //Enter low power state while waiting for sensors to record data - ignore digital interrupts
 
   //Retrieve sensor data
   digitalWriteFast(I2C_pullup_pin, HIGH); //Pullup the I2C line
@@ -554,6 +543,8 @@ delay(701);
   response = autoGain('l', full); //Adjust gain if necessary
   color_sensor.getRawDataWithoutDelay(&r, &g, &b, &c);
   response = autoGain('c', c); //Adjust gain if necessary
+  color_sensor.disable(); //Put color sensor in low power state
+  light_sensor.disable(); //Put light sensor in low power state
   digitalWriteFast(I2C_pullup_pin, LOW); //Power down I2C line
 
   //Print sensor data to log buffer
@@ -720,7 +711,7 @@ void initializeDevice(){
   } else { // if Sync successful
     strcpy(boot_disp[boot_index++], "RTC sync successful ");
   }
-  unix_t = now();
+  RTCms(); //Get current time
   next_log_time = unix_t + log_interval;
   setHibernateTimer();
   sprintf(boot_disp[boot_index++], "%4d/%02d/%02d %02d:%02d:%02d ", year(unix_t), month(unix_t), day(unix_t), hour(unix_t), minute(unix_t), second(unix_t)); //Write current time to boot screen
@@ -792,11 +783,16 @@ void initializeDevice(){
     color_on = true;
 
     //Set gain and integration time
+    color_sensor.enable();
     color_sensor.setGain(color_gain_command[color_gain_index]);
     color_sensor.setIntegrationTime(color_integration_command[color_integration_index]);
-    color_sensor.getRawData(&dummy_channel, &dummy_channel, &dummy_channel, &test_channel);
-    color_sensor.getRawData(&dummy_channel, &dummy_channel, &dummy_channel, &test_channel);
-    autoGain('c', test_channel);   
+    timer.setTimer((uint16_t) (color_integration_value[color_integration_index] + 1));
+    wakeup_source = Snooze.hibernate(hibernate_config_timer_only);
+    color_sensor.getRawDataWithoutDelay(&dummy_channel, &dummy_channel, &dummy_channel, &test_channel);
+    wakeup_source = Snooze.hibernate(hibernate_config_timer_only);
+    color_sensor.getRawDataWithoutDelay(&dummy_channel, &dummy_channel, &dummy_channel, &test_channel);
+    autoGain('c', test_channel); 
+    color_sensor.disable();  
   }
   else{
     strcpy(boot_disp[boot_index++], "Color sensor...FAIL!");
@@ -815,11 +811,15 @@ void initializeDevice(){
     light_on = true;
 
     //Set gain and integration time
+    light_sensor.enable();
     light_sensor.setGain(light_gain_command[light_gain_index]);
     light_sensor.setTiming(light_integration_command[light_integration_index]);
+    timer.setTimer((uint16_t) (light_integration_value[light_integration_index] + 1));
+    wakeup_source = Snooze.hibernate(hibernate_config_timer_only); 
     lum = light_sensor.getFullLuminosity();
     test_channel = lum & 0xFFFF;
-    autoGain('l', test_channel);    
+    autoGain('l', test_channel); 
+    light_sensor.disable();   
   }
   else{
     strcpy(boot_disp[boot_index++], "Light sensor...FAIL!");
@@ -978,7 +978,7 @@ char autoGain(char sensor, uint16_t test_channel){
   uint16_t *over_exposed, *under_exposed;
   uint8_t counter, start_counter, max_index;
   uint8_t *gain_index, *integration_index, *gain_command, *integration_command;
-  unix_t = now();
+  RTCms(); //Get current time
   
 
   //Get sensor settings
@@ -1026,20 +1026,25 @@ char autoGain(char sensor, uint16_t test_channel){
     if(sensor == 'c'){
       color_sensor.setGain(color_gain_command[*gain_index]);
       color_sensor.setIntegrationTime(color_integration_command[*integration_index]);
-      color_sensor.getRawData(&dummy_channel, &dummy_channel, &dummy_channel, &test_channel);
-      color_sensor.getRawData(&dummy_channel, &dummy_channel, &dummy_channel, &test_channel);
+      timer.setTimer((uint16_t) (color_integration_value[*integration_index] + 1));
+      wakeup_source = Snooze.hibernate(hibernate_config_timer_only); //Enter low power state while waiting for sensors to record data - ignore digital interrupts
+      color_sensor.getRawDataWithoutDelay(&dummy_channel, &dummy_channel, &dummy_channel, &test_channel);
+      wakeup_source = Snooze.hibernate(hibernate_config_timer_only); //Enter low power state while waiting for sensors to record data - ignore digital interrupts
+      color_sensor.getRawDataWithoutDelay(&dummy_channel, &dummy_channel, &dummy_channel, &test_channel);
       *over_exposed = color_integration_max_count[color_integration_index] >> color_over_shift;
       *under_exposed = color_integration_max_count[color_integration_index] >> color_under_shift;  //Exposure steps in 2^4 so min is 1 + 2^(4) + 1 = >>6  
     }
     else{
       light_sensor.setGain(light_gain_command[*gain_index]);
       light_sensor.setTiming(light_integration_command[*integration_index]);
+      timer.setTimer((uint16_t) (light_integration_value[*integration_index] + 1));
+      wakeup_source = Snooze.hibernate(hibernate_config_timer_only); //Enter low power state while waiting for sensors to record data - ignore digital interrupts
       lum = light_sensor.getFullLuminosity();
       test_channel = lum & 0xFFFF;
       *over_exposed = light_integration_max_count[light_integration_index] >> light_over_shift;
       *under_exposed = light_integration_max_count[light_integration_index] >> light_under_shift; //Gain steps in 2^5 so min is 1 + 2^(5) + 1 = >>7
     }
-    unix_t = now(); //Update the clock
+    RTCms(); //Update the clock
   } while(counter-- && (unix_t < next_log_time-1 || !log_active) && (test_channel > *over_exposed && *integration_index) || (test_channel < *under_exposed  && *gain_index < max_index));
   
   return 'c'; //Tell calling function that exposure was changed 
@@ -1174,20 +1179,24 @@ void setLCDbacklight(float intensity){
 void disableDisplay(boolean disable){
   if(disable){
     digitalWriteFast(LCD_toggle_pin, LOW); //Turn off LCD power - Do NOT turn off LCD if it is connected as this draws more power - input pins in low impedance?
+    pinMode(LCD_toggle_pin, INPUT_DISABLE);
     lcd.noDisplay(); //Turn off display by command
     digitalWriteFast(LED_PWM_pin, LOW); //Turn off backlight
     analogWrite(contrast_pin, 0); //Turn off LCD contrast
     DAC0_C0 = 0; //Disable DAC pin DAC0 to save power on hibernate - https://github.com/duff2013/Snooze/issues/12 - unsigned char to fix warning - https://www.avrfreaks.net/forum/warning-large-integer-implicitly-truncated-unsigned-type
     for(int a=0; a<(sizeof(LCD_pin)/sizeof(LCD_pin[0])); a++) pinMode(LCD_pin[a], INPUT_DISABLE); //Set digital pins to high impedance
+    display_on = false;
   }
   else{ 
     for(int a=0; a<(sizeof(LCD_pin)/sizeof(LCD_pin[0])); a++) pinMode(LCD_pin[a], OUTPUT); //Set digital pins to high impedance
     DAC0_C0 = 1; //Disable DAC pin DAC0 to save power on hibernate - https://github.com/duff2013/Snooze/issues/12 - unsigned char to fix warning - https://www.avrfreaks.net/forum/warning-large-integer-implicitly-truncated-unsigned-type
+    pinMode(LCD_toggle_pin, OUTPUT);
     digitalWriteFast(LCD_toggle_pin, HIGH); //Turn off LCD power
     delay(100);
     lcd.begin(20, 4); //Initialize LCD
     setLCDbacklight(default_backlight); //Turn on LED backlight to default intensity
     setLCDcontrast(default_contrast); //Initialize screen contrast to default value
+    display_on = true;
   }
 }
 
