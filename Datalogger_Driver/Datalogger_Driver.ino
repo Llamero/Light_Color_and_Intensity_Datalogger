@@ -8,8 +8,12 @@
 #include <Snooze.h> //Put Teensy into low power state between log points
 #include <SD.h> //Store data onto SD card
 
+//Define software restart
+#define RESTART_ADDR       0xE000ED0C
+#define READ_RESTART()     (*(volatile uint32_t *)RESTART_ADDR)
+#define WRITE_RESTART(val) ((*(volatile uint32_t *)RESTART_ADDR) = (val))
+
 //Setup default parameters
-uint16_t n_logs_per_file = 10000; //The number of logs to save to a file before creating a new low file
 uint8_t log_interval_array[] = {0, 0, 2}; //Number of hours, minutes, and seconds between log intervals
 const char boot_dir[] = "boot_log"; //Directory to save boot log files into - max length 8 char
 const char log_dir[] = "data_log"; //Directory to save data log files into - max length 8 char
@@ -20,7 +24,7 @@ boolean measure_lux = true;
 boolean measure_color = true;
 boolean measure_battery = true;
 
-boolean disable_display_on_log = true; //Completely power down display during logging
+boolean disable_display_on_log = false; //Completely power down display during logging
 const float default_backlight = 0; //Set default backlight intensity to full brightness (range is 0-1)
 const float default_contrast = 0.5; //Set default LCD contrast to half range (range is 0-1)
 
@@ -32,8 +36,7 @@ const float default_contrast = 0.5; //Set default LCD contrast to half range (ra
 // Load drivers
 SnoozeDigital digital;
 SnoozeTimer timer;
-SnoozeBlock hibernate_config_both(digital, timer);
-SnoozeBlock hibernate_config_timer_only(timer);
+SnoozeBlock hibernate_config(digital, timer);
 time_t unix_t = 0; //Track current device time
 uint16_t unix_ms = 0; //Current time in ms
 time_t next_log_time = 0; //next log time in unix time
@@ -330,15 +333,17 @@ const char log_header[] = "Date,Time,Temperature(°C),Pressure(hPa),Humidity(%),
 const uint8_t n_log_columns = 13; //Number of items to log per round
 uint8_t boot_index = 0; //Index of boot message
 int warning_count = 0; //Number of warnings encountered during boot 
-const uint32_t internal_log_size = 100000; //Maximum number of bytes to be stored internally
-volatile char internal_log_buffer[internal_log_size]; //Array for storing data logs while SD card is not available 
-uint32_t log_internal_index = 0; //Index of internal log string
-uint32_t log_internal_count = 0; //Number of stings that have been added to internal log
-uint16_t log_file_index = 0; //Index of current line in log file
-char current_file_name[13]; //Storing the current log file name - max length for FAT32 is 8.3 - 13 characters total including null at end
-uint16_t log_file_count = 0; //Counter for tracking number of log files in ascii (track files from aa to zz)
+volatile char log_internal_buffer[65536]; //Array for storing data logs while SD card is not available  - must be 2^16 as a ciruclar buffer is used to ensure efficient SD storage (512 byte blocks) - use uint16_t rollover to implement circular buffer
+uint16_t log_end_index = 65535; //Index of internal log string - use uint16_t rollover to implement circular buffer
+uint16_t log_start_index = 0; //Index where previous write to SD finished - allows writing to SD in blocks of 512 bytes
+char current_boot_file_path[25]; //Storing the current log file path - max length for FAT32 is 8.3 - 13 characters total including null at end
+char current_log_file_path[25]; //Storing the current log file name - max length for FAT32 is 8.3 - 13 characters total including null at end
+uint16_t log_line_count = 0; //Number of rows in current log file
+uint16_t log_file_count = 0; //Counter for tracking number of log files in ascii (track files from aa to zz) - sets file suffix to next availalble - AA->AB->AC, etc.
 const uint16_t max_log_file = 26*26; //Largest number of log files available on the same date
 boolean log_active = false; //Whether the device is actively logging or in standby state
+byte tx_buffer[512]; //Buffer for building strings and data blocks - 512 is most efficient block size for SD library
+uint16_t tx_index = 0; //Current position in tx_buffer
 
 //Initialize libraries
 Adafruit_BME280 temp_sensor; //Create instance of temp sensor
@@ -375,7 +380,7 @@ void loop() {
 //  lcd.setCursor(0,1);
 //  lcd.print(unix_t);
 //  //If an initial timer time has been set, increment timer time
-  wakeup_source = Snooze.hibernate(hibernate_config_both);
+  if(!wakeup_source) wakeup_source = Snooze.hibernate(hibernate_config);
   unix_t = now(); //Update to current RTC time
   if(wakeup_source <= 33) delay(debounce);
   wakeupEvent(wakeup_source);
@@ -389,6 +394,7 @@ void loop() {
 void wakeupEvent(uint8_t src){
   //joystick_pins[] = {9, 11, 2, 7, 10}; //Joystick pins - up, right, down, left, push 
   if(src > 33){ //If > 33 then trigger was a non-digital event such as RTC timer   
+    wakeup_source = 0; //Clear wake-up source
     if(log_next_wake){
       if(log_active){ 
          logEvent();    
@@ -407,15 +413,17 @@ void wakeupEvent(uint8_t src){
     else if(src == joystick_pins[1] || src == joystick_pins[3]){
       cycleWindow(src);
     }
+    wakeup_source = 0; //Clear wake-up source
   }
   if(src == joystick_pins[4]){
     centerPress(src);
+    wakeup_source = 0;
   }
   //If wake event was button press, wait for button release
-  else if(src <= 33){
+  if(src <= 33){
     while(!digitalRead(src));
     delay(debounce);
-  }  
+  }
 }
 
 void centerPress(uint8_t src){
@@ -429,29 +437,38 @@ void centerPress(uint8_t src){
   BigNumber_SendCustomChars(); //Export double line char table - https://www.instructables.com/id/Custom-Large-Font-For-16x2-LCDs/
   if(disable_display_on_log && log_active) disableDisplay(false);
   timer.setTimer(1000);
-  
-  while(lcd_timer > '0' && !digitalRead(src)){
-    lcd.clear();
-    index = 0;
-    col = 0;  
-    while(line1[index]) col += DrawBigChar(col, 0, line1[index++]);
-    index = 0;
-    col = 0;
-    while(line2[index]) col += DrawBigChar(col, 2, line2[index++]);
-    DrawBigChar(15, 2, lcd_timer--);
-    wakeup_source = Snooze.hibernate(hibernate_config_timer_only); //Enter low power state during count down.
-  }
-  if(lcd_timer == '0'){   
-    toggleLog();
-  }
-  else{
-    if(disable_display_on_log && log_active) disableDisplay(true);
-    if(!log_active) scrollWindow(src); 
-  }
 
-  //Restore arrow chars for menu scrolling
-  lcd.createChar(0, up_arrow); //Create arrow characters
-  lcd.createChar(1, down_arrow); 
+  pinMode(src, INPUT_PULLUP);//Set pin so that it can be checked if it is still pressed
+  if(SD.exists(boot_dir)){
+    while(lcd_timer > '0' && !digitalRead(src)){
+      lcd.clear();
+      index = 0;
+      col = 0;  
+      while(line1[index]) col += DrawBigChar(col, 0, line1[index++]);
+      index = 0;
+      col = 0;
+      while(line2[index]) col += DrawBigChar(col, 2, line2[index++]);
+      DrawBigChar(15, 2, lcd_timer);
+      wakeup_source = Snooze.hibernate(hibernate_config);
+      if(wakeup_source == src) break;
+      else if(wakeup_source < 34) wakeup_source = Snooze.hibernate(hibernate_config);
+      else lcd_timer--;
+      pinMode(src, INPUT_PULLUP); //Set pin so that it can be checked if it is still pressed
+    }
+    
+    if(lcd_timer == '0'){   
+      toggleLog();
+    }
+    else{
+      if(disable_display_on_log && log_active) disableDisplay(true);
+      if(!log_active) scrollWindow(src); 
+    }
+  
+    //Restore arrow chars for menu scrolling
+    lcd.createChar(0, up_arrow); //Create arrow characters
+    lcd.createChar(1, down_arrow);
+  }
+  else noSdHold();
 }
 
 //Increment timer and sync to RTC;
@@ -498,91 +515,108 @@ void toggleLog(){
     initializeLog();
   }
   else{
+    log_start_index = saveToSD(current_log_file_path, (char *) log_internal_buffer, log_start_index, log_end_index, true); //Save remainder of current file
+    RTCms();
+    for(log_file_count = 0; log_file_count < max_log_file-1; log_file_count++){ //Look for next available file name
+      sprintf(current_log_file_path, "%s/%02d%02d%02d%c%c.csv", log_dir, year(unix_t)-2000, month(unix_t), day(unix_t), (log_file_count/26)+97, (log_file_count%26)+97);     
+      if(!SD.exists(current_log_file_path)) break;
+    }
     scrollWindow(joystick_pins[4]); //Restore display
   }
 }
 
 void logEvent(){
-  uint16_t RTC_ms, r, g, b, c, full, IR;
-  uint32_t lum;
+  uint16_t RTC_ms, r, g, b, c, full, IR, sensor_delay;
+  uint32_t lum, sensor_finished;
   float temp, pres, hum, Vbat, Vin;
   char response = ' ';
-  
-  //Start up sensor readings
-  digitalWriteFast(I2C_pullup_pin, HIGH); //Pullup the I2C line
-  delay(1); 
-  color_sensor.enableWithoutDelay(); //This reading takes the longest so queue first, read last
-  light_sensor.enable(); //Start light sensor recording
-  temp_sensor.takeForcedMeasurementWithoutDelay(); //Start temp sensor recording
-  digitalWriteFast(I2C_pullup_pin, LOW); //Power down I2C line
-  
-  //Add date and time to log
-  RTCms();
-  log_internal_index += snprintf(internal_log_buffer+log_internal_index, internal_log_size-log_internal_index, 
-  "%4d/%02d/%02d," //log date
-  "%02d:%02d:%02d.%03d," //log time
-  , year(unix_t), month(unix_t), day(unix_t), //Get date
-  hour(unix_t), minute(unix_t), second(unix_t), unix_ms); //Get time
-  
-  //Enter low power state while waiting for sensors to get recordings
-  if(color_integration_value[color_integration_index] > light_integration_value[light_integration_index]) timer.setTimer((uint16_t) (color_integration_value[color_integration_index] + 1));
-  else timer.setTimer((uint16_t) (light_integration_value[light_integration_index] + 1)); 
-  wakeup_source = Snooze.hibernate(hibernate_config_timer_only); //Enter low power state while waiting for sensors to record data - ignore digital interrupts
+  tx_index = 0; //Reset buffer index
 
-  //Retrieve sensor data
-  digitalWriteFast(I2C_pullup_pin, HIGH); //Pullup the I2C line
-  delay(1);
-  Vbat = checkVbat();
-  Vin = checkVin();    
-  temp = temp_sensor.readTemperature();
-  pres = (temp_sensor.readPressure() / 100.0F);
-  hum = temp_sensor.readHumidity(); 
-  lum = light_sensor.getFullLuminosity();
-  full = (uint16_t) (lum & 0xFFFF);
-  IR = (uint16_t) (lum >> 16);
-  response = autoGain('l', full); //Adjust gain if necessary
-  color_sensor.getRawDataWithoutDelay(&r, &g, &b, &c);
-  response = autoGain('c', c); //Adjust gain if necessary
-  color_sensor.disable(); //Put color sensor in low power state
-  light_sensor.disable(); //Put light sensor in low power state
-  digitalWriteFast(I2C_pullup_pin, LOW); //Power down I2C line
-
-  //Print sensor data to log buffer
-  log_internal_index += snprintf(internal_log_buffer+log_internal_index, internal_log_size-log_internal_index, 
-  "%.2f,%.2f,%.2f," //Temp, pressure, and humidity
-  "%.6g,%.6g,%d,%d,%d," //Light: Full Gain, IR Gain, Integration, Full ADC, IR ADC
-  "%.6g,%d,%d,%d,%d,%d," //Color: Gain, Integration, Red ADC, Green ADC, Blue ADC, Clear ADC
-  "%.3f,%.3f,%c" //Battery: Vin, Vbat and print comment
-  , temp, pres, hum, //Temp sensor
-  vis_gain_value[light_gain_index], IR_gain_value[light_gain_index], light_integration_value[light_integration_index], full, IR, //Light sensor
-  color_gain_value[color_gain_index], color_integration_value[color_integration_index], r, g, b, c, //Light sensor 
-  Vbat, Vin, response); //Battry values
+  log_line_count++; //Increment log counter
+  if(!log_line_count){ //If log line counter has rolled over - save rest of current buffer and then start new log file
+    log_start_index = saveToSD(current_log_file_path, (char *) log_internal_buffer, log_start_index, log_end_index, true); //Save remainder of current file
+    RTCms();
+    for(log_file_count = 0; log_file_count < max_log_file-1; log_file_count++){ //Look for next available file name
+      sprintf(current_log_file_path, "%s/%02d%02d%02d%c%c.csv", log_dir, year(unix_t)-2000, month(unix_t), day(unix_t), (log_file_count/26)+97, (log_file_count%26)+97);     
+      if(!SD.exists(current_log_file_path)) break;
+    }
+    initializeLog();  
+  }
+  else{
+    //Start up sensor readings
+    digitalWriteFast(I2C_pullup_pin, HIGH); //Pullup the I2C line
+    delay(1); 
+    color_sensor.enableWithoutDelay(); //This reading takes the longest so queue first, read last
+    light_sensor.enable(); //Start light sensor recording
+    temp_sensor.takeForcedMeasurementWithoutDelay(); //Start temp sensor recording
+    digitalWriteFast(I2C_pullup_pin, LOW); //Power down I2C line
+    
+    //Add date and time to log
+    RTCms();
+    tx_index += snprintf(tx_buffer+tx_index, sizeof(tx_buffer)-tx_index, 
+    "%4d/%02d/%02d," //log date
+    "%02d:%02d:%02d.%03d," //log time
+    , year(unix_t), month(unix_t), day(unix_t), //Get date
+    hour(unix_t), minute(unix_t), second(unix_t), unix_ms); //Get time
+    
+    
+    //Enter low power state while waiting for sensors to get recordings
+    if(color_integration_value[color_integration_index] > light_integration_value[light_integration_index]) timer.setTimer((uint16_t) (color_integration_value[color_integration_index] + 1));
+    else timer.setTimer((uint16_t) (light_integration_value[light_integration_index] + 1)); 
+    sensorDelay();
+    
+    //Retrieve sensor data
+    digitalWriteFast(I2C_pullup_pin, HIGH); //Pullup the I2C line
+    delay(1);
+    Vbat = checkVbat();
+    Vin = checkVin();    
+    temp = temp_sensor.readTemperature();
+    pres = (temp_sensor.readPressure() / 100.0F);
+    hum = temp_sensor.readHumidity(); 
+    lum = light_sensor.getFullLuminosity();
+    full = (uint16_t) (lum & 0xFFFF);
+    IR = (uint16_t) (lum >> 16);
+    response = autoGain('l', full); //Adjust gain if necessary
+    color_sensor.getRawDataWithoutDelay(&r, &g, &b, &c);
+    response = autoGain('c', c); //Adjust gain if necessary
+    color_sensor.disable(); //Put color sensor in low power state
+    light_sensor.disable(); //Put light sensor in low power state
+    digitalWriteFast(I2C_pullup_pin, LOW); //Power down I2C line
   
-  //End of log
-  log_internal_count++; //Increment log counter
-  internal_log_buffer[log_internal_index++] = 0; //Add null to end of log string
-  if(saveToSD(log_dir, current_file_name, (char *) internal_log_buffer, log_internal_count)){
-    log_internal_index = 0;
-    internal_log_buffer[0] = 0;
-    log_internal_count = 0;
+    //Print sensor data to log buffer
+    tx_index += snprintf(tx_buffer+tx_index, sizeof(tx_buffer)-tx_index, 
+    "%.2f,%.2f,%.2f," //Temp, pressure, and humidity
+    "%.6g,%.6g,%d,%d,%d," //Light: Full Gain, IR Gain, Integration, Full ADC, IR ADC
+    "%.6g,%d,%d,%d,%d,%d," //Color: Gain, Integration, Red ADC, Green ADC, Blue ADC, Clear ADC
+    "%.3f,%.3f,%c" //Battery: Vin, Vbat and print comment
+    , temp, pres, hum, //Temp sensor
+    vis_gain_value[light_gain_index], IR_gain_value[light_gain_index], light_integration_value[light_integration_index], full, IR, //Light sensor
+    color_gain_value[color_gain_index], color_integration_value[color_integration_index], r, g, b, c, //Light sensor 
+    Vbat, Vin, response); //Battry values
+    
+    //End of log
+    tx_index++;
+    for(uint8_t a=0; a<tx_index; a++){ //Dump the tx buffer into the log buffer
+      log_internal_buffer[++log_end_index] = tx_buffer[a];
+    }
+    log_start_index = saveToSD(current_log_file_path, (char *) log_internal_buffer, log_start_index, log_end_index, false);
   }
 }
 
 void initializeLog(){
   //Initialize logging variables
-  internal_log_buffer[0] = 0;
-  log_internal_index = 0;
-  log_internal_count = 0;
-  log_file_index = 0;
+  log_line_count = 65534;
+  tx_index = 0;
     
   //Sync log timing to button press
   next_log_time = unix_t;
 
   //Add header to log queue
-  log_internal_index += snprintf(internal_log_buffer+log_internal_index, internal_log_size-log_internal_index, log_header);
-  internal_log_buffer[log_internal_index++] = 0;
-  log_internal_count++; 
-
+  snprintf(tx_buffer+tx_index, sizeof(tx_buffer)-tx_index, log_header);
+  while(log_header[tx_index]){ //Dump the tx buffer into the log buffer
+    log_internal_buffer[++log_end_index] = log_header[tx_index++];
+  }
+  log_internal_buffer[++log_end_index] = 0; //Add null character to end of header 
   logEvent();
 }
 
@@ -699,10 +733,6 @@ void initializeDevice(){
     pinMode(Vin_analog_pin, INPUT); //Set battery ADC to floating high impedance
   }
   
-  //Setup USB serial communication
-  Serial.begin(9600); //Baud rate is ignored and negotiated with computer for max speed
-  wakeUSB();
-
   //Synchronize Teensy clock to computer clock
   setSyncProvider(getTeensy3Time); //Sync to computer clock - do not use () in function as argument
   if (timeStatus()!= timeSet) { //If sync failed
@@ -787,9 +817,9 @@ void initializeDevice(){
     color_sensor.setGain(color_gain_command[color_gain_index]);
     color_sensor.setIntegrationTime(color_integration_command[color_integration_index]);
     timer.setTimer((uint16_t) (color_integration_value[color_integration_index] + 1));
-    wakeup_source = Snooze.hibernate(hibernate_config_timer_only);
+    sensorDelay();
     color_sensor.getRawDataWithoutDelay(&dummy_channel, &dummy_channel, &dummy_channel, &test_channel);
-    wakeup_source = Snooze.hibernate(hibernate_config_timer_only);
+    sensorDelay();
     color_sensor.getRawDataWithoutDelay(&dummy_channel, &dummy_channel, &dummy_channel, &test_channel);
     autoGain('c', test_channel); 
     color_sensor.disable();  
@@ -815,7 +845,7 @@ void initializeDevice(){
     light_sensor.setGain(light_gain_command[light_gain_index]);
     light_sensor.setTiming(light_integration_command[light_integration_index]);
     timer.setTimer((uint16_t) (light_integration_value[light_integration_index] + 1));
-    wakeup_source = Snooze.hibernate(hibernate_config_timer_only); 
+    sensorDelay();
     lum = light_sensor.getFullLuminosity();
     test_channel = lum & 0xFFFF;
     autoGain('l', test_channel); 
@@ -835,10 +865,10 @@ void initializeDevice(){
   sprintf(boot_disp[boot_index++], "VBat: %4.2fV         ", volt);
   if(volt > 0){
     coin_present = true;
-    if(volt < 2.8){
-      strcpy(boot_disp[boot_index++], "Vbat low voltage!   ");
-      warning_count += 1;
-    }
+  }
+  if(volt < 2.8){
+    strcpy(boot_disp[boot_index++], "Vbat low voltage!   ");
+    warning_count += 1;
   }
 
   volt = checkVin();
@@ -853,7 +883,7 @@ void initializeDevice(){
 
   //Test SD card
   lcd.setCursor(0,3);
-  lcd.println("Checking SD card");
+  lcd.print("Initialize SD");
   if (card.init(SPI_HALF_SPEED, chipSelect)) { //Check if SD card is present
     strcpy(boot_disp[boot_index++], "SD card found       ");
   }
@@ -907,26 +937,16 @@ void initializeDevice(){
       }
     }
   }
-
-  //Search for the most recent log file and increment log_file_index to next file ID
-  if(SD.exists(log_dir)){
-    char file_path[100];
-    uint8_t i = -1;
-    uint8_t j = -1;
-    uint8_t dir_len = 0;
-    while(log_dir[++i]) file_path[i] = log_dir[i];
-    file_path[i] = '/';
-    dir_len = i;
-    for(log_file_count = 0; log_file_count < max_log_file-1; log_file_count++){
-      j = -1;
-      i = dir_len;
-      sprintf(current_file_name, "%02d%02d%02d%c%c.txt", year(unix_t)-2000, month(unix_t), day(unix_t), (log_file_count/26)+97, (log_file_count%26)+97);     
-      while(current_file_name[++j]) file_path[++i] = current_file_name[j];
-      file_path[++i] = 0; //Force termination
-      if(!SD.exists(file_path)) break;
-    }
-  }
   
+  //Search for the most recent log file and increment log_file_count to next file ID
+  if(SD.exists(log_dir)){
+    for(log_file_count = 0; log_file_count < max_log_file-1; log_file_count++){
+      sprintf(current_log_file_path, "%s/%02d%02d%02d%c%c.csv", log_dir, year(unix_t)-2000, month(unix_t), day(unix_t), (log_file_count/26)+97, (log_file_count%26)+97);     
+      if(!SD.exists(current_log_file_path)) break;
+    }
+    sprintf(current_boot_file_path, "%s/%02d%02d%02d%c%c.txt", boot_dir, year(unix_t)-2000, month(unix_t), day(unix_t), (log_file_count/26)+97, (log_file_count%26)+97); 
+  }
+ 
   //Report number of warning encountered
   if(warning_count){
     sprintf(boot_disp[boot_index++], "% 2d Warnings on boot!", warning_count);
@@ -936,25 +956,10 @@ void initializeDevice(){
   }
   
   //Save current boot log
-  sprintf(current_file_name, "%02d%02d%02d%c%c.txt", year(unix_t)-2000, month(unix_t), day(unix_t), (log_file_count/26)+97, (log_file_count%26)+97); 
-  boot_file_saved = saveToSD(boot_dir, current_file_name, (char *) boot_disp, boot_index);
-  if(!boot_file_saved){
+  if(saveToSD(current_boot_file_path, (char *) boot_disp, 0, boot_index*LCD_dim_x, true) != boot_index*LCD_dim_x){
     strcpy(boot_disp[boot_index++], "Boot save FAIL!     ");
   }
     
-  if(Serial){
-    for(int a = 0; a<boot_index; a++){
-      for(int b=0; b<20; b++){
-        Serial.print(boot_disp[a][b]);
-      }
-      Serial.println();
-    }
-    Serial.println("\nFiles found on the card (name, date and size in bytes): ");
-    root.openRoot(volume);
-  
-    // list all files in the card with date and size
-    root.ls(LS_R | LS_DATE | LS_SIZE);
-  }
   strcpy(boot_disp[boot_index++], "Use stick to scroll ");
   strcpy(boot_disp[boot_index++], "Press center to log ");
   LCD_window_lines[0] = boot_index;
@@ -964,7 +969,6 @@ void initializeDevice(){
         lcd.setCursor(0,b);
         lcd.println(boot_disp[LCD_line_index+b]);        
       }
-      delay(200);
     }
     lcd.setCursor(LCD_dim_x-2, 0);
     lcd.write(0);
@@ -1027,9 +1031,9 @@ char autoGain(char sensor, uint16_t test_channel){
       color_sensor.setGain(color_gain_command[*gain_index]);
       color_sensor.setIntegrationTime(color_integration_command[*integration_index]);
       timer.setTimer((uint16_t) (color_integration_value[*integration_index] + 1));
-      wakeup_source = Snooze.hibernate(hibernate_config_timer_only); //Enter low power state while waiting for sensors to record data - ignore digital interrupts
+      sensorDelay();
       color_sensor.getRawDataWithoutDelay(&dummy_channel, &dummy_channel, &dummy_channel, &test_channel);
-      wakeup_source = Snooze.hibernate(hibernate_config_timer_only); //Enter low power state while waiting for sensors to record data - ignore digital interrupts
+      sensorDelay();
       color_sensor.getRawDataWithoutDelay(&dummy_channel, &dummy_channel, &dummy_channel, &test_channel);
       *over_exposed = color_integration_max_count[color_integration_index] >> color_over_shift;
       *under_exposed = color_integration_max_count[color_integration_index] >> color_under_shift;  //Exposure steps in 2^4 so min is 1 + 2^(4) + 1 = >>6  
@@ -1038,7 +1042,7 @@ char autoGain(char sensor, uint16_t test_channel){
       light_sensor.setGain(light_gain_command[*gain_index]);
       light_sensor.setTiming(light_integration_command[*integration_index]);
       timer.setTimer((uint16_t) (light_integration_value[*integration_index] + 1));
-      wakeup_source = Snooze.hibernate(hibernate_config_timer_only); //Enter low power state while waiting for sensors to record data - ignore digital interrupts
+      sensorDelay();
       lum = light_sensor.getFullLuminosity();
       test_channel = lum & 0xFFFF;
       *over_exposed = light_integration_max_count[light_integration_index] >> light_over_shift;
@@ -1048,6 +1052,13 @@ char autoGain(char sensor, uint16_t test_channel){
   } while(counter-- && (unix_t < next_log_time-1 || !log_active) && (test_channel > *over_exposed && *integration_index) || (test_channel < *under_exposed  && *gain_index < max_index));
   
   return 'c'; //Tell calling function that exposure was changed 
+}
+
+//Hibernate while sensors take reading
+void sensorDelay(){
+  wakeup_source = Snooze.hibernate(hibernate_config); //Enter low power state while waiting for sensors to record data
+  if(wakeup_source > 33) wakeup_source = 0; //Reset wakeup flag for timer wake
+  else delay(700); //Otherwise, button was pressed so wait for rest of sensor read, and then process press
 }
 
 //Sync the global unix_t and unix_ms - Get RTC with ms precision - code from: https://github.com/manitou48/teensy3/blob/master/RTCms.ino
@@ -1111,38 +1122,66 @@ float checkVin(){
 }
 
 //Save data to the SD card
-boolean saveToSD(char (*dir), char (*file_name), char *data_array, int n_lines){
-  char file_path[100];
-  int i = -1;
-  int j = -1;
+uint16_t saveToSD(char (*file_path), char *data_array, uint16_t start_index, uint16_t end_index, boolean force_write){
+  uint16_t log_size = end_index-start_index;
   File f;
+  lcd.setCursor(0,0);
+  lcd.print(start_index);
+  lcd.setCursor(0,1);
+  lcd.print(end_index);
+  
+  if(force_write || log_size >= 512){ 
+    if(SD.exists(log_dir)){ //Make sure that the save directories exist before trying to save to it - without this check open() will lock without SD card  
 
-  //Concatenate directory and file name
-  while(dir[++i]) file_path[i] = dir[i];
-  file_path[i] = 0;
-  if(SD.exists(file_path)){ //Make sure that the save directory exists before trying to save to it - without this check open() will lock without SD card  
-    file_path[i] = '/';
-    
-    while(file_name[++j]) file_path[++i] = file_name[j];
-    file_path[++i] = 0;
-    
-    //Open file
-    f = SD.open(file_path, FILE_WRITE);
-    if(f){
-      for(int a=0; a<n_lines; a++){
-        while(*data_array){ //Stream data to file until a null character is reached
-          f.print(*data_array);
-          data_array++; //Increment array pointer
+      //Open file
+      f = SD.open(file_path, FILE_WRITE);
+      if(f){
+        while(log_size >= 512){ //Retrieve a blocks of 512 bytes
+          tx_index = 0;
+          for(uint16_t a=start_index; a!=(start_index+512); a++){
+            tx_buffer[tx_index++] = (*(data_array + a)) ? *(data_array + a) : '\n'; //Replace all null characters with newline characters
+          }
+          f.write(tx_buffer, 512);
+          start_index += 512;
+          log_size = end_index-start_index; //Update remaining log size
         }
-        f.println();
-        data_array++;
+        if(force_write){ //Print remainder of data buffer if force_write is enabled
+          tx_index = 0;
+          while(start_index != end_index){
+              tx_buffer[tx_index++] = (*(data_array + start_index)) ? *(data_array + start_index) : '\n'; //Replace all null characters with newline characters
+              start_index++;
+          }
+          tx_buffer[tx_index++] = (*(data_array + start_index)) ? *(data_array + start_index) : '\n'; //Replace all null characters with newline characters
+          f.write(tx_buffer, tx_index-1);              
+        }
+        f.close(); //File timestamp applied on close (save)
       }
-      f.close(); //File timestamp applied on close (save)
-      return true;
     }
+    else noSdHold();
   }
-  return false;
+  return start_index;
 }
+
+void noSdHold(){
+  disableDisplay(false);
+  lcd.createChar(1, down_arrow);
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("Please insert an SD");
+  lcd.setCursor(0,1);
+  lcd.print("card formatted to  ");
+  lcd.setCursor(0,2);
+  lcd.print("FAT32 and reboot  ");
+  lcd.setCursor(0,3);
+  for(uint8_t a = 0; a<7; a++){
+    lcd.write(1);
+  }
+  timer.setTimer(65535);
+  wakeup_source = 34;
+  while(wakeup_source > 33) wakeup_source = Snooze.hibernate(hibernate_config);
+  WRITE_RESTART(0x5FA0004);
+}
+
 //Adjust LCD contrast
 void setLCDcontrast(float contrast){
   //Force 0-1 range
@@ -1243,18 +1282,18 @@ uint8_t checkBusy(){
   return response;
 }
 
-void wakeUSB(){
-    elapsedMillis time = 0;
-    while (!Serial && time < 2000) {
-        Serial.write(0x00);// print out a bunch of NULLS to serial monitor
-        digitalWriteFast(LED_BUILTIN, HIGH);
-        delay(30);
-        digitalWriteFast(LED_BUILTIN, LOW);
-        delay(30);
-    }
-    // normal delay for Arduino Serial Monitor
-    delay(200);
-}
+//void wakeUSB(){
+//    elapsedMillis time = 0;
+//    while (!Serial && time < 2000) {
+//        Serial.write(0x00);// print out a bunch of NULLS to serial monitor
+//        digitalWriteFast(LED_BUILTIN, HIGH);
+//        delay(30);
+//        digitalWriteFast(LED_BUILTIN, LOW);
+//        delay(30);
+//    }
+//    // normal delay for Arduino Serial Monitor
+//    delay(200);
+//}
 
 //************************************************************************
 static void  BigNumber_SendCustomChars(void)
