@@ -24,7 +24,8 @@ boolean measure_lux = true;
 boolean measure_color = true;
 boolean measure_battery = true;
 
-boolean disable_display_on_log = false; //Completely power down display during logging
+boolean disable_display_on_log = true; //Completely power down display during logging
+boolean save_on_log_interval = false; //Save to SD every log interval - this is less battery efficient during saves than saving in 512 byte blocks, but will ensure no loss of data 
 const float default_backlight = 0; //Set default backlight intensity to full brightness (range is 0-1)
 const float default_contrast = 0.5; //Set default LCD contrast to half range (range is 0-1)
 
@@ -300,6 +301,7 @@ const int chipSelect = BUILTIN_SDCARD;
 Sd2Card card;
 SdVolume volume;
 SdFile root;
+File f;
 boolean boot_file_saved = false; //Whether the boot log has been saved to the SD card
 
 //Component status
@@ -380,8 +382,12 @@ void loop() {
 //  lcd.setCursor(0,1);
 //  lcd.print(unix_t);
 //  //If an initial timer time has been set, increment timer time
-  if(!wakeup_source) wakeup_source = Snooze.hibernate(hibernate_config);
-  unix_t = now(); //Update to current RTC time
+  if(!wakeup_source){
+    pinMode(joystick_pins[4], INPUT_PULLUP);
+    if(!digitalRead(joystick_pins[4])) wakeup_source = joystick_pins[4]; //Check for stop press before sleeping
+    else wakeup_source = Snooze.hibernate(hibernate_config);
+  }
+  RTCms();
   if(wakeup_source <= 33) delay(debounce);
   wakeupEvent(wakeup_source);
 //  if(log_active){
@@ -570,7 +576,7 @@ void logEvent(){
     delay(1);
     Vbat = checkVbat();
     Vin = checkVin();    
-    temp = temp_sensor.readTemperature();
+    temp = temp_sensor.readTemperature(); //Read temp first as it is needed to calibrate pressure and hum
     pres = (temp_sensor.readPressure() / 100.0F);
     hum = temp_sensor.readHumidity(); 
     lum = light_sensor.getFullLuminosity();
@@ -605,7 +611,7 @@ void logEvent(){
 
 void initializeLog(){
   //Initialize logging variables
-  log_line_count = 65534;
+  log_line_count = 1;
   tx_index = 0;
     
   //Sync log timing to button press
@@ -1124,11 +1130,14 @@ float checkVin(){
 //Save data to the SD card
 uint16_t saveToSD(char (*file_path), char *data_array, uint16_t start_index, uint16_t end_index, boolean force_write){
   uint16_t log_size = end_index-start_index;
-  File f;
-  lcd.setCursor(0,0);
-  lcd.print(start_index);
-  lcd.setCursor(0,1);
-  lcd.print(end_index);
+  uint16_t a = 0; //Generic loop counter
+  if(save_on_log_interval) force_write = true; //Save buffer every cycle if save flag is set
+  
+//  lcd.clear();
+//  lcd.setCursor(0,0);
+//  lcd.print((uint16_t) start_index);
+//  lcd.setCursor(0,1);
+//  lcd.print((uint16_t) end_index);
   
   if(force_write || log_size >= 512){ 
     if(SD.exists(log_dir)){ //Make sure that the save directories exist before trying to save to it - without this check open() will lock without SD card  
@@ -1138,7 +1147,8 @@ uint16_t saveToSD(char (*file_path), char *data_array, uint16_t start_index, uin
       if(f){
         while(log_size >= 512){ //Retrieve a blocks of 512 bytes
           tx_index = 0;
-          for(uint16_t a=start_index; a!=(start_index+512); a++){
+          a = start_index;
+          while(a++ != (uint16_t) (start_index+512)){ 
             tx_buffer[tx_index++] = (*(data_array + a)) ? *(data_array + a) : '\n'; //Replace all null characters with newline characters
           }
           f.write(tx_buffer, 512);
@@ -1152,6 +1162,7 @@ uint16_t saveToSD(char (*file_path), char *data_array, uint16_t start_index, uin
               start_index++;
           }
           tx_buffer[tx_index++] = (*(data_array + start_index)) ? *(data_array + start_index) : '\n'; //Replace all null characters with newline characters
+          start_index++;
           f.write(tx_buffer, tx_index-1);              
         }
         f.close(); //File timestamp applied on close (save)
@@ -1230,7 +1241,7 @@ void disableDisplay(boolean disable){
     for(int a=0; a<(sizeof(LCD_pin)/sizeof(LCD_pin[0])); a++) pinMode(LCD_pin[a], OUTPUT); //Set digital pins to high impedance
     DAC0_C0 = 1; //Disable DAC pin DAC0 to save power on hibernate - https://github.com/duff2013/Snooze/issues/12 - unsigned char to fix warning - https://www.avrfreaks.net/forum/warning-large-integer-implicitly-truncated-unsigned-type
     pinMode(LCD_toggle_pin, OUTPUT);
-    digitalWriteFast(LCD_toggle_pin, HIGH); //Turn off LCD power
+    digitalWriteFast(LCD_toggle_pin, HIGH); //Turn on LCD power
     delay(100);
     lcd.begin(20, 4); //Initialize LCD
     setLCDbacklight(default_backlight); //Turn on LED backlight to default intensity
