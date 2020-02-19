@@ -335,17 +335,17 @@ const char log_header[] = "Date,Time,Temperature(°C),Pressure(hPa),Humidity(%),
 const uint8_t n_log_columns = 13; //Number of items to log per round
 uint8_t boot_index = 0; //Index of boot message
 int warning_count = 0; //Number of warnings encountered during boot 
-volatile char log_internal_buffer[65536]; //Array for storing data logs while SD card is not available  - must be 2^16 as a ciruclar buffer is used to ensure efficient SD storage (512 byte blocks) - use uint16_t rollover to implement circular buffer
-uint16_t log_end_index = 65535; //Index of internal log string - use uint16_t rollover to implement circular buffer
-uint16_t log_start_index = 0; //Index where previous write to SD finished - allows writing to SD in blocks of 512 bytes
+const uint32_t log_internal_buffer_size = 2000;
+volatile char log_internal_buffer[log_internal_buffer_size]; //Array for storing data logs while SD card is not available  - must be 2^16 as a ciruclar buffer is used to ensure efficient SD storage (512 byte blocks) - use uint16_t rollover to implement circular buffer
+uint32_t log_start_index = 0; //Index where previous write to SD finished - allows writing to SD in blocks of 512 bytes
+uint32_t log_end_index = log_start_index; //Index of internal log string - use uint16_t rollover to implement circular buffer
+const char *log_reset_pointer = log_internal_buffer + (log_internal_buffer_size - 512); //The address in the buffer where the buffer needs to be reset to avoid overflow
 char current_boot_file_path[25]; //Storing the current log file path - max length for FAT32 is 8.3 - 13 characters total including null at end
 char current_log_file_path[25]; //Storing the current log file name - max length for FAT32 is 8.3 - 13 characters total including null at end
 uint16_t log_line_count = 0; //Number of rows in current log file
 uint16_t log_file_count = 0; //Counter for tracking number of log files in ascii (track files from aa to zz) - sets file suffix to next availalble - AA->AB->AC, etc.
 const uint16_t max_log_file = 26*26; //Largest number of log files available on the same date
 boolean log_active = false; //Whether the device is actively logging or in standby state
-byte tx_buffer[512]; //Buffer for building strings and data blocks - 512 is most efficient block size for SD library
-uint16_t tx_index = 0; //Current position in tx_buffer
 
 //Initialize libraries
 Adafruit_BME280 temp_sensor; //Create instance of temp sensor
@@ -536,7 +536,6 @@ void logEvent(){
   uint32_t lum, sensor_finished;
   float temp, pres, hum, Vbat, Vin;
   char response = ' ';
-  tx_index = 0; //Reset buffer index
 
   log_line_count++; //Increment log counter
   if(!log_line_count){ //If log line counter has rolled over - save rest of current buffer and then start new log file
@@ -559,7 +558,7 @@ void logEvent(){
     
     //Add date and time to log
     RTCms();
-    tx_index += snprintf(tx_buffer+tx_index, sizeof(tx_buffer)-tx_index, 
+    log_end_index += snprintf(log_internal_buffer+log_end_index, log_internal_buffer_size-log_end_index, 
     "%4d/%02d/%02d," //log date
     "%02d:%02d:%02d.%03d," //log time
     , year(unix_t), month(unix_t), day(unix_t), //Get date
@@ -590,7 +589,7 @@ void logEvent(){
     digitalWriteFast(I2C_pullup_pin, LOW); //Power down I2C line
   
     //Print sensor data to log buffer
-    tx_index += snprintf(tx_buffer+tx_index, sizeof(tx_buffer)-tx_index, 
+    log_end_index += snprintf(log_internal_buffer+log_end_index, log_internal_buffer_size-log_end_index, 
     "%.2f,%.2f,%.2f," //Temp, pressure, and humidity
     "%.6g,%.6g,%d,%d,%d," //Light: Full Gain, IR Gain, Integration, Full ADC, IR ADC
     "%.6g,%d,%d,%d,%d,%d," //Color: Gain, Integration, Red ADC, Green ADC, Blue ADC, Clear ADC
@@ -599,30 +598,29 @@ void logEvent(){
     vis_gain_value[light_gain_index], IR_gain_value[light_gain_index], light_integration_value[light_integration_index], full, IR, //Light sensor
     color_gain_value[color_gain_index], color_integration_value[color_integration_index], r, g, b, c, //Light sensor 
     Vbat, Vin, response); //Battry values
+    log_internal_buffer[log_end_index++] = '\n'; //Add newline character to end of log line
     
     //End of log
-    tx_index++;
-    for(uint8_t a=0; a<tx_index; a++){ //Dump the tx buffer into the log buffer
-      log_internal_buffer[++log_end_index] = tx_buffer[a];
-    }
     log_start_index = saveToSD(current_log_file_path, (char *) log_internal_buffer, log_start_index, log_end_index, false);
+  }
+  if((log_internal_buffer+log_end_index) > log_reset_pointer){ //If the buffer is about to overflow, reset the buffer
+    uint32_t log_remainder_size = log_end_index-log_start_index;
+    memcpy(log_internal_buffer, log_internal_buffer+log_start_index, log_remainder_size); //Copy the unsaved remainder of the buffer to the start of the buffer
+    log_start_index = 0; //Reset starting pointer to start of buffer
+    log_end_index = log_start_index + log_remainder_size; //Reset ending pointer to end of unsaved buffer
   }
 }
 
 void initializeLog(){
   //Initialize logging variables
   log_line_count = 1;
-  tx_index = 0;
     
   //Sync log timing to button press
   next_log_time = unix_t;
 
   //Add header to log queue
-  snprintf(tx_buffer+tx_index, sizeof(tx_buffer)-tx_index, log_header);
-  while(log_header[tx_index]){ //Dump the tx buffer into the log buffer
-    log_internal_buffer[++log_end_index] = log_header[tx_index++];
-  }
-  log_internal_buffer[++log_end_index] = 0; //Add null character to end of header 
+  log_end_index += snprintf(log_internal_buffer+log_end_index, log_internal_buffer_size-log_end_index, log_header);
+  log_internal_buffer[log_end_index++] = '\n'; //Add newline character to end of header 
   logEvent();
 }
 
@@ -962,8 +960,14 @@ void initializeDevice(){
   }
   
   //Save current boot log
+  for(int a = 0; a<boot_index; a++){
+    boot_disp[a][LCD_dim_x-1] = '\n'; //Replace all nulls with new lines for *.txt formatting
+  }
   if(saveToSD(current_boot_file_path, (char *) boot_disp, 0, boot_index*LCD_dim_x, true) != boot_index*LCD_dim_x){
     strcpy(boot_disp[boot_index++], "Boot save FAIL!     ");
+  }
+  for(int a = 0; a<boot_index; a++){
+    boot_disp[a][LCD_dim_x-1] = 0; //Replace all new lines with nulls for println() formatting
   }
     
   strcpy(boot_disp[boot_index++], "Use stick to scroll ");
@@ -1128,9 +1132,8 @@ float checkVin(){
 }
 
 //Save data to the SD card
-uint16_t saveToSD(char (*file_path), char *data_array, uint16_t start_index, uint16_t end_index, boolean force_write){
-  uint16_t log_size = end_index-start_index;
-  uint16_t a = 0; //Generic loop counter
+uint32_t saveToSD(char (*file_path), char *data_array, uint32_t start_index, uint32_t end_index, boolean force_write){
+  uint32_t log_size = end_index-start_index;
   if(save_on_log_interval) force_write = true; //Save buffer every cycle if save flag is set
   
 //  lcd.clear();
@@ -1138,6 +1141,8 @@ uint16_t saveToSD(char (*file_path), char *data_array, uint16_t start_index, uin
 //  lcd.print((uint16_t) start_index);
 //  lcd.setCursor(0,1);
 //  lcd.print((uint16_t) end_index);
+//  lcd.setCursor(0,2);
+//  lcd.print((uint16_t) log_line_count);
   
   if(force_write || log_size >= 512){ 
     if(SD.exists(log_dir)){ //Make sure that the save directories exist before trying to save to it - without this check open() will lock without SD card  
@@ -1146,24 +1151,13 @@ uint16_t saveToSD(char (*file_path), char *data_array, uint16_t start_index, uin
       f = SD.open(file_path, FILE_WRITE);
       if(f){
         while(log_size >= 512){ //Retrieve a blocks of 512 bytes
-          tx_index = 0;
-          a = start_index;
-          while(a++ != (uint16_t) (start_index+512)){ 
-            tx_buffer[tx_index++] = (*(data_array + a)) ? *(data_array + a) : '\n'; //Replace all null characters with newline characters
-          }
-          f.write(tx_buffer, 512);
+          f.write((data_array + start_index), 512);
           start_index += 512;
           log_size = end_index-start_index; //Update remaining log size
         }
         if(force_write){ //Print remainder of data buffer if force_write is enabled
-          tx_index = 0;
-          while(start_index != end_index){
-              tx_buffer[tx_index++] = (*(data_array + start_index)) ? *(data_array + start_index) : '\n'; //Replace all null characters with newline characters
-              start_index++;
-          }
-          tx_buffer[tx_index++] = (*(data_array + start_index)) ? *(data_array + start_index) : '\n'; //Replace all null characters with newline characters
-          start_index++;
-          f.write(tx_buffer, tx_index-1);              
+          f.write((data_array + start_index), log_size);
+          start_index += log_size;                       
         }
         f.close(); //File timestamp applied on close (save)
       }
