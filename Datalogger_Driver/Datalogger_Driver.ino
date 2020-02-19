@@ -335,7 +335,7 @@ const char log_header[] = "Date,Time,Temperature(°C),Pressure(hPa),Humidity(%),
 const uint8_t n_log_columns = 13; //Number of items to log per round
 uint8_t boot_index = 0; //Index of boot message
 int warning_count = 0; //Number of warnings encountered during boot 
-const uint32_t log_internal_buffer_size = 2000;
+const uint32_t log_internal_buffer_size = 200000;
 volatile char log_internal_buffer[log_internal_buffer_size]; //Array for storing data logs while SD card is not available  - must be 2^16 as a ciruclar buffer is used to ensure efficient SD storage (512 byte blocks) - use uint16_t rollover to implement circular buffer
 uint32_t log_start_index = 0; //Index where previous write to SD finished - allows writing to SD in blocks of 512 bytes
 uint32_t log_end_index = log_start_index; //Index of internal log string - use uint16_t rollover to implement circular buffer
@@ -440,8 +440,8 @@ void centerPress(uint8_t src){
   uint8_t index = 0;
   uint8_t col = 0;
   if(log_active) strcpy(line1, "STOP ");
-  BigNumber_SendCustomChars(); //Export double line char table - https://www.instructables.com/id/Custom-Large-Font-For-16x2-LCDs/
   if(disable_display_on_log && log_active) disableDisplay(false);
+  BigNumber_SendCustomChars(); //Export double line char table - https://www.instructables.com/id/Custom-Large-Font-For-16x2-LCDs/
   timer.setTimer(1000);
 
   pinMode(src, INPUT_PULLUP);//Set pin so that it can be checked if it is still pressed
