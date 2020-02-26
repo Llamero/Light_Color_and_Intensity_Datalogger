@@ -27,7 +27,7 @@ boolean measure_battery = true;
 boolean disable_display_on_log = true; //Completely power down display during logging
 boolean save_on_log_interval = false; //Save to SD every log interval - this is less battery efficient during saves than saving in 512 byte blocks, but will ensure no loss of data 
 const float default_backlight = 0; //Set default backlight intensity to full brightness (range is 0-1)
-const float default_contrast = 0.5; //Set default LCD contrast to half range (range is 0-1)
+const float default_contrast = 0.7; //Set default LCD contrast to half range (range is 0-1)
 
 //Allow Teensy to re-run setup when settings are changed - Call "CPU_RESTART"
 #define CPU_RESTART_ADDR (uint32_t *)0xE000ED0C
@@ -47,11 +47,11 @@ const uint16_t log_offset = 1000; //Time in ms it takes to log a data point - al
 boolean log_next_wake = false; //Whether to log on the next timer wake event
 
 //Setup LCD pin numbers and initial parameters
-const uint8_t LCD_pin[] = {30, 34, 35, 5, 4, 3, 1}; //Only 4-pin supported in LiquidCrystalFast
+const uint8_t LCD_pin[] = {30, 32, 31, 5, 3, 1, 0}; //Only 4-pin supported in LiquidCrystalFast
               // LCD pins: RS  RW  EN  D4 D5 D6 D7
 LiquidCrystalFast lcd(LCD_pin[0], LCD_pin[1], LCD_pin[2], LCD_pin[3], LCD_pin[4], LCD_pin[5], LCD_pin[6]);
-const uint8_t LCD_toggle_pin = 24; //Set to high to power on LCD
-const uint8_t LED_PWM_pin = 29; //Drive LED backlight intensity
+const uint8_t LCD_toggle_pin = 29; //Set to high to power on LCD
+const uint8_t LED_PWM_pin = 10; //Drive LED backlight intensity
 const uint8_t contrast_pin = A21; //DAC pin for addjusting diplay contrast
 const uint8_t analog_resolution = 16; //Number of bits in PWM and DAC analog  - PWM cap is 16, DAC cap is 12 - auto capped in code - https://www.pjrc.com/teensy/td_pulse.html
 const uint16_t analog_max = (1<<analog_resolution)-1; //Highest analog value
@@ -251,8 +251,8 @@ const uint8_t temp_power_pin = 20; //Set Vcc pins
 const uint8_t color_power_pin = 23;
 const uint8_t light_power_pin = 17;
 const uint8_t color_interrupt_pin = 16; //Set interrupt pins
-const uint8_t light_interrupt_pin = 33;
-const uint8_t I2C_pullup_pin = 12; //Pin providing I2C pullup voltage
+const uint8_t light_interrupt_pin = 21;
+const uint8_t I2C_pullup_pin = 8; //Pin providing I2C pullup voltage
 TwoWire* temp_port = &Wire; //Set I2C (wire) ports
 TwoWire* color_port = &Wire;
 TwoWire* light_port = &Wire1;
@@ -286,15 +286,14 @@ uint16_t light_over_exposed = light_integration_max_count[light_integration_inde
 uint16_t light_under_exposed = light_integration_max_count[light_integration_index] >> light_under_shift;
 
 //Setup joystick pins
-const uint8_t joystick_pins[] = {9, 11, 2, 7, 10}; //Joystick pins - up, right, down, left, push 
+const uint8_t joystick_pins[] = {9, 6, 2, 7, 4}; //Joystick pins - up, right, down, left, push 
                               //u,  r,  d, l, center 
 const uint8_t debounce = 50; //Time in ms to debounce button press
 
 //Setup battery test pin numbers
-const uint8_t coin_test_pin = 36;
-const uint8_t coin_analog_pin = A1;
-const uint8_t Vin_test_pin = 39;
-const uint8_t Vin_analog_pin = A0; 
+const uint8_t coin_analog_pin = A0;
+const uint8_t Vin_test_pin = 11;
+const uint8_t Vin_analog_pin = A1; 
 
 //Setup SD card
 const int chipSelect = BUILTIN_SDCARD;
@@ -728,9 +727,7 @@ void initializeDevice(){
   digitalWriteFast(I2C_pullup_pin, (measure_temp || measure_humidity || measure_pressure || measure_lux || measure_color));
 
   //Set battery test pins
-  pinMode(coin_test_pin, OUTPUT);
   pinMode(Vin_test_pin, OUTPUT);
-  digitalWriteFast(coin_test_pin, LOW); //Disconnect coin cell from ADC
   digitalWriteFast(Vin_test_pin, LOW); //Disconnect battery from ADC
   if(measure_battery){
     pinMode(coin_analog_pin, INPUT); //Set coin cell ADC to floating high impedance
@@ -759,6 +756,7 @@ void initializeDevice(){
   analogReadResolution(analog_resolution); //Set ADC resolution - NOTE: Do not change once set!
   analogWriteFrequency(LED_PWM_pin, analog_freq); //Set LED PWM freq - other pins on same timer will also change - https://www.pjrc.com/teensy/td_pulse.html
   pinMode(LCD_toggle_pin, OUTPUT); //Turn display on
+  pinMode(LED_PWM_pin, OUTPUT); //Turn backlight control on
   digitalWrite(LCD_toggle_pin, HIGH);
   lcd.begin(20, 4); //Initialize LCD
   lcd.createChar(0, up_arrow); //Create arrow characters
@@ -1105,11 +1103,9 @@ time_t getTeensy3Time(){
 float checkVbat(){
   float coin_voltage = 0;
   pinMode(coin_analog_pin, INPUT_PULLDOWN);
-  digitalWriteFast(coin_test_pin, HIGH); //Connect coin cell to ADC
   if(digitalRead(coin_analog_pin)){
     pinMode(coin_analog_pin, INPUT);
     coin_voltage = analogRead(coin_analog_pin);
-    digitalWriteFast(coin_test_pin, LOW); //disconnect coin cell from ADC
     coin_voltage *= 3.3/analog_max;
   }
   pinMode(coin_analog_pin, INPUT_DISABLE); //Return input to high impedance state
