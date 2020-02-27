@@ -722,8 +722,6 @@ Text Label 5300 5850 0    50   ~ 0
 Vin
 Wire Wire Line
 	5700 5050 5700 5100
-NoConn ~ 5900 4550
-NoConn ~ 5900 5050
 Wire Wire Line
 	5500 4550 5300 4550
 $Comp
@@ -817,4 +815,19 @@ Wire Wire Line
 	5300 5550 5500 5550
 Wire Wire Line
 	5500 5550 5500 5050
+Text Label 5900 5250 0    50   ~ 0
+LED_PWM
+Wire Wire Line
+	5900 5250 5900 5050
+$Comp
+L power:GND #PWR?
+U 1 1 5E575191
+P 5900 4550
+F 0 "#PWR?" H 5900 4300 50  0001 C CNN
+F 1 "GND" H 5905 4377 50  0000 C CNN
+F 2 "" H 5900 4550 50  0001 C CNN
+F 3 "" H 5900 4550 50  0001 C CNN
+	1    5900 4550
+	1    0    0    1   
+$EndComp
 $EndSCHEMATC

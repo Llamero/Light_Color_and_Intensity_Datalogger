@@ -596,7 +596,7 @@ void logEvent(){
     , temp, pres, hum, //Temp sensor
     vis_gain_value[light_gain_index], IR_gain_value[light_gain_index], light_integration_value[light_integration_index], full, IR, //Light sensor
     color_gain_value[color_gain_index], color_integration_value[color_integration_index], r, g, b, c, //Light sensor 
-    Vbat, Vin, response); //Battry values
+    Vin, Vbat, response); //Battry values
     log_internal_buffer[log_end_index++] = '\n'; //Add newline character to end of log line
     
     //End of log
@@ -707,9 +707,11 @@ void initializeDevice(){
   boot_index = 0;
   strcpy(boot_disp[boot_index++], "Boot status:        ");
 
-  //Disable built-in LED
+  //Disable built-in LED and LCD backlight on boot
   pinMode(LED_BUILTIN, OUTPUT); 
   digitalWriteFast(LED_BUILTIN, LOW);
+  pinMode(LED_PWM_pin, OUTPUT); //Turn backlight control on
+  digitalWrite(LED_PWM_pin, LOW); //Turn of backlight at start of boot
 
   //Initialize joystick pins - map to digital wake from hibernate
   for(int a = 0; a<5; a++){
