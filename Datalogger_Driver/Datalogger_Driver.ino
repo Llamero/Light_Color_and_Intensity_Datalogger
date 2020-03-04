@@ -483,7 +483,7 @@ void setHibernateTimer(){
   RTCms(); //Get current time
   
   if(next_log_time > unix_t){ //If time is still remaining
-    if(time_remaining >= 120){
+    if(time_remaining >= 64){
       timer.setTimer(60000);
       log_next_wake = false;
     }
