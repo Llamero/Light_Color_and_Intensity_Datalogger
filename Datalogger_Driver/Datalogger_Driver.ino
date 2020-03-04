@@ -364,37 +364,20 @@ void dateTime(uint16_t* date, uint16_t* time) {
 //------------------------------------------------------------------------------
 
 
-float contrast = 0;
-boolean state = false;
-uint32_t log_display_counter = 0;
-
 void setup() {
   initializeDevice();
 }
 
 void loop() {
-  uint32_t index = 0;
-  log_display_counter++;
-//  lcd.setCursor(0,0);
-//  lcd.print(next_log_time);
-//  lcd.setCursor(0,2);
-//  lcd.print(RTCms());
-//  lcd.setCursor(0,1);
-//  lcd.print(unix_t);
-//  //If an initial timer time has been set, increment timer time
+  //If an initial timer time has been set, increment timer time
   if(!wakeup_source){
     pinMode(joystick_pins[4], INPUT_PULLUP);
     if(!digitalRead(joystick_pins[4])) wakeup_source = joystick_pins[4]; //Check for stop press before sleeping
     else wakeup_source = Snooze.hibernate(hibernate_config);
   }
-  RTCms();
+  RTCms(); //Get RTC time
   if(wakeup_source <= 33) delay(debounce);
   wakeupEvent(wakeup_source);
-//  if(log_active){
-//    if(!display_on) disableDisplay(false);
-//    lcd.setCursor(0,0);
-//    lcd.print(log_display_counter);
-//  }  
 }
 
 void wakeupEvent(uint8_t src){
@@ -550,7 +533,7 @@ void logEvent(){
   else{
     //Start up sensor readings
     digitalWriteFast(I2C_pullup_pin, HIGH); //Pullup the I2C line
-    delay(1); 
+    delayMicroseconds(10); 
     color_sensor.enableWithoutDelay(); //This reading takes the longest so queue first, read last
     light_sensor.enable(); //Start light sensor recording
     temp_sensor.takeForcedMeasurementWithoutDelay(); //Start temp sensor recording
@@ -572,7 +555,7 @@ void logEvent(){
     
     //Retrieve sensor data
     digitalWriteFast(I2C_pullup_pin, HIGH); //Pullup the I2C line
-    delay(1);
+    delayMicroseconds(10);
     Vin = checkVin();    
     temp = temp_sensor.readTemperature(); //Read temp first as it is needed to calibrate pressure and hum
     pres = (temp_sensor.readPressure() / 100.0F);
@@ -727,6 +710,8 @@ void initializeDevice(){
   digitalWriteFast(color_power_pin, measure_color);
   digitalWriteFast(light_power_pin, measure_lux);
   digitalWriteFast(I2C_pullup_pin, (measure_temp || measure_humidity || measure_pressure || measure_lux || measure_color));
+  pinMode(color_interrupt_pin, INPUT_DISABLE); //Set interrupt pins to high impedance
+  pinMode(light_interrupt_pin, INPUT_DISABLE);
 
   //Set battery test pins
   pinMode(Vin_test_pin, OUTPUT);
