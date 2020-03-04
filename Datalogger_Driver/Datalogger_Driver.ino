@@ -7,6 +7,8 @@
 #include <TimeLib.h> //Set RTC time and get time strings
 #include <Snooze.h> //Put Teensy into low power state between log points
 #include <SD.h> //Store data onto SD card
+#include <ADC.h>
+
 
 //Define software restart
 #define RESTART_ADDR       0xE000ED0C
@@ -22,7 +24,7 @@ boolean measure_humidity = true;
 boolean measure_pressure = true;
 boolean measure_lux = true;
 boolean measure_color = true;
-boolean measure_battery = true;
+boolean measure_Vin = true;
 
 boolean disable_display_on_log = true; //Completely power down display during logging
 boolean save_on_log_interval = false; //Save to SD every log interval - this is less battery efficient during saves than saving in 512 byte blocks, but will ensure no loss of data 
@@ -55,7 +57,8 @@ const uint8_t LED_PWM_pin = 10; //Drive LED backlight intensity
 const uint8_t contrast_pin = A21; //DAC pin for addjusting diplay contrast
 const uint8_t analog_resolution = 16; //Number of bits in PWM and DAC analog  - PWM cap is 16, DAC cap is 12 - auto capped in code - https://www.pjrc.com/teensy/td_pulse.html
 const uint16_t analog_max = (1<<analog_resolution)-1; //Highest analog value
-const uint32_t analog_freq = 24000000/(1<<analog_resolution); //Calculate freq based on fastest for minimum clock speed - 24 MHz
+const uint32_t analog_freq = 1000; //PWM frequency in Hz
+ADC *adc = new ADC(); // adc object;
 
 //Define LCD custom characters - from https://www.instructables.com/id/Custom-Large-Font-For-16x2-LCDs/
 const uint8_t up_arrow[8] = {
@@ -291,7 +294,6 @@ const uint8_t joystick_pins[] = {9, 6, 2, 7, 4}; //Joystick pins - up, right, do
 const uint8_t debounce = 50; //Time in ms to debounce button press
 
 //Setup battery test pin numbers
-const uint8_t coin_analog_pin = A0;
 const uint8_t Vin_test_pin = 11;
 const uint8_t Vin_analog_pin = A1; 
 
@@ -313,7 +315,6 @@ boolean color_present = false;
 boolean color_on = false;
 boolean light_present = false;
 boolean light_on = false;
-boolean coin_present = false;
 boolean SD_present = false;
 uint8_t wakeup_source; //Source of wake from hibernate
 
@@ -321,8 +322,8 @@ uint8_t wakeup_source; //Source of wake from hibernate
 const uint8_t boot_dim_y = 20; //Number of rows (total lines)
 const uint8_t LCD_dim_x = 21; //Number of columns (characters per line) - add one character for null character to delineate strings
 char boot_disp[boot_dim_y][LCD_dim_x]; //Array for boot display
-const uint8_t log_disp_dim_y = 24; //Number of rows (total lines)
-char log_disp[log_disp_dim_y][LCD_dim_x] = {"Log Status:         ","---------RTC--------","Date:               ","Time:               ","-----AIR SENSOR-----","Temp:             \xDF""C","Pres(hPa):          ","Humidity(%):        ","----LIGHT SENSOR----","Gain:               ","Integration:      ms","Vis ADC:            ","IR ADC:             ","----COLOR SENSOR----","Gain:               ","Integration:      ms","Red ADC:            ","Green ADC:          ","Blue ADC:           ","Clear ADC:          ","-------BATTERY------","Vin:               V","Vbat:              V","Comment:            "};
+const uint8_t log_disp_dim_y = 23; //Number of rows (total lines)
+char log_disp[log_disp_dim_y][LCD_dim_x] = {"Log Status:         ","---------RTC--------","Date:               ","Time:               ","-----AIR SENSOR-----","Temp:             \xDF""C","Pres(hPa):          ","Humidity(%):        ","----LIGHT SENSOR----","Gain:               ","Integration:      ms","Vis ADC:            ","IR ADC:             ","----COLOR SENSOR----","Gain:               ","Integration:      ms","Red ADC:            ","Green ADC:          ","Blue ADC:           ","Clear ADC:          ","-------BATTERY------","Vin:               V","Comment:            "};
 const uint8_t settings_dim_y = 17; //Number of rows (total lines)
 char settings_disp[settings_dim_y][LCD_dim_x] = {"Settings:           ","-------SENSORS------","Temperature:        ","Humidity:           ","Pressure:           ","Light:              ","Color:              ","Battery:            ","----LOG INTERVAL----", "(hh:mm:ss):         ","----LCD SETTINGS----","Contrast:           ","Backlight:          ","Disable on log:     ","----RTC SETTINGS----","Date:               ","Time:               "};
 const uint8_t n_windows = 3;
@@ -330,7 +331,7 @@ char *LCD_windows[] = {(char *) boot_disp, (char *) log_disp, (char *) settings_
 uint8_t LCD_window_index = 0; //Current LCD window being displayed
 uint8_t LCD_line_index = 0; //Current index of top line being displayed
 uint8_t LCD_window_lines[] = {boot_dim_y, log_disp_dim_y, settings_dim_y}; //Array of total number of lines for each window
-const char log_header[] = "Date,Time,Temperature(°C),Pressure(hPa),Humidity(%),Light_Full_Gain,Light_IR_Gain,Light_Integration(ms),Light_Full_ADC,Light_IR_ADC,RGB_Gain,RGB_Integration(ms),Red_ADC,Green_ADC,Blue_ADC,Clear_ADC,Vin(V),Vbat(V),Comment,";
+const char log_header[] = "Date,Time,Temperature(°C),Pressure(hPa),Humidity(%),Light_Full_Gain,Light_IR_Gain,Light_Integration(ms),Light_Full_ADC,Light_IR_ADC,RGB_Gain,RGB_Integration(ms),Red_ADC,Green_ADC,Blue_ADC,Clear_ADC,Vin(V),Comment,";
 const uint8_t n_log_columns = 13; //Number of items to log per round
 uint8_t boot_index = 0; //Index of boot message
 int warning_count = 0; //Number of warnings encountered during boot 
@@ -533,7 +534,7 @@ void toggleLog(){
 void logEvent(){
   uint16_t RTC_ms, r, g, b, c, full, IR, sensor_delay;
   uint32_t lum, sensor_finished;
-  float temp, pres, hum, Vbat, Vin;
+  float temp, pres, hum, Vin;
   char response = ' ';
 
   log_line_count++; //Increment log counter
@@ -572,7 +573,6 @@ void logEvent(){
     //Retrieve sensor data
     digitalWriteFast(I2C_pullup_pin, HIGH); //Pullup the I2C line
     delay(1);
-    Vbat = checkVbat();
     Vin = checkVin();    
     temp = temp_sensor.readTemperature(); //Read temp first as it is needed to calibrate pressure and hum
     pres = (temp_sensor.readPressure() / 100.0F);
@@ -592,11 +592,11 @@ void logEvent(){
     "%.2f,%.2f,%.2f," //Temp, pressure, and humidity
     "%.6g,%.6g,%d,%d,%d," //Light: Full Gain, IR Gain, Integration, Full ADC, IR ADC
     "%.6g,%d,%d,%d,%d,%d," //Color: Gain, Integration, Red ADC, Green ADC, Blue ADC, Clear ADC
-    "%.3f,%.3f,%c" //Battery: Vin, Vbat and print comment
+    "%.3f,%c" //Battery: Vin and print comment
     , temp, pres, hum, //Temp sensor
     vis_gain_value[light_gain_index], IR_gain_value[light_gain_index], light_integration_value[light_integration_index], full, IR, //Light sensor
     color_gain_value[color_gain_index], color_integration_value[color_integration_index], r, g, b, c, //Light sensor 
-    Vin, Vbat, response); //Battry values
+    Vin, response); //Battry values
     log_internal_buffer[log_end_index++] = '\n'; //Add newline character to end of log line
     
     //End of log
@@ -731,8 +731,7 @@ void initializeDevice(){
   //Set battery test pins
   pinMode(Vin_test_pin, OUTPUT);
   digitalWriteFast(Vin_test_pin, LOW); //Disconnect battery from ADC
-  if(measure_battery){
-    pinMode(coin_analog_pin, INPUT); //Set coin cell ADC to floating high impedance
+  if(measure_Vin){
     pinMode(Vin_analog_pin, INPUT); //Set battery ADC to floating high impedance
   }
   
@@ -753,10 +752,19 @@ void initializeDevice(){
   Wire.setClock(400000); 
   Wire1.setClock(400000);
 
-  //Start LCD display
+  //Set DAC and PWM
   analogWriteResolution(analog_resolution); //Set DAC and PWM resolution - NOTE: Do not change once set!
   analogReadResolution(analog_resolution); //Set ADC resolution - NOTE: Do not change once set!
   analogWriteFrequency(LED_PWM_pin, analog_freq); //Set LED PWM freq - other pins on same timer will also change - https://www.pjrc.com/teensy/td_pulse.html
+
+  //Set ADC
+  adc->setReference(ADC_REFERENCE::REF_3V3, ADC_0);
+  adc->setAveraging(1); // set number of averages
+  adc->setResolution(analog_resolution); // set bits of resolution
+  adc->setConversionSpeed(ADC_CONVERSION_SPEED::VERY_HIGH_SPEED);
+  adc->setSamplingSpeed(ADC_SAMPLING_SPEED::VERY_HIGH_SPEED);
+
+  //Start LCD display
   pinMode(LCD_toggle_pin, OUTPUT); //Turn display on
   pinMode(LED_PWM_pin, OUTPUT); //Turn backlight control on
   digitalWrite(LCD_toggle_pin, HIGH);
@@ -864,18 +872,7 @@ void initializeDevice(){
   }
   digitalWriteFast(I2C_pullup_pin, LOW); //Power down I2C pullup as sensor communication is complete
   
-  //Test batteries
-  float volt = checkVbat();
-  sprintf(boot_disp[boot_index++], "VBat: %4.2fV         ", volt);
-  if(volt > 0){
-    coin_present = true;
-  }
-  if(volt < 2.8){
-    strcpy(boot_disp[boot_index++], "Vbat low voltage!   ");
-    warning_count += 1;
-  }
-
-  volt = checkVin();
+  float volt = checkVin();
   sprintf(boot_disp[boot_index++], "Vin:  %4.2fV         ", volt);
   if(volt < 3.6){
     strcpy(boot_disp[boot_index++], "Vin low voltage!    ");
@@ -1101,31 +1098,13 @@ time_t getTeensy3Time(){
   return Teensy3Clock.get();
 }
 
-//Check coin cell voltage - since the ADC for the coin cell down is floating, we have to do a PULLDOWN to a known state first to see if a battery is connected before trying to measure the voltage
-float checkVbat(){
-  float coin_voltage = 0;
-  pinMode(coin_analog_pin, INPUT_PULLDOWN);
-  if(digitalRead(coin_analog_pin)){
-    pinMode(coin_analog_pin, INPUT);
-    coin_voltage = analogRead(coin_analog_pin);
-    coin_voltage *= 3.3/analog_max;
-  }
-  pinMode(coin_analog_pin, INPUT_DISABLE); //Return input to high impedance state
-  return coin_voltage;
-}
-
 //Measure battery voltage, which is 2x ADC reading - due to the 1/2 voltage divider, ADC is in a known PULLDOWN state 
 float checkVin(){
   float Vin_voltage = 0;
-  pinMode(Vin_analog_pin, INPUT_PULLDOWN);
   digitalWriteFast(Vin_test_pin, HIGH); //Connect Vin cell to ADC
-  if(digitalRead(Vin_analog_pin)){
-    pinMode(Vin_analog_pin, INPUT);
-    Vin_voltage = analogRead(Vin_analog_pin);
-    digitalWriteFast(Vin_test_pin, LOW); //disconnect Vin cell from ADC
-    Vin_voltage *= 6.6/analog_max;
-  }
-  pinMode(Vin_analog_pin, INPUT_DISABLE); //Return input to high impedance state
+  Vin_voltage = adc->analogRead(Vin_analog_pin);
+  digitalWriteFast(Vin_test_pin, LOW); //disconnect Vin cell from ADC
+  Vin_voltage *= 6.6/analog_max;
   return Vin_voltage;
 }
 
