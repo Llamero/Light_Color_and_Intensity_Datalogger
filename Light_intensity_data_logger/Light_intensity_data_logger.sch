@@ -279,8 +279,6 @@ NoConn ~ 8300 3500
 NoConn ~ 8300 3400
 Text Label 8300 3300 2    50   ~ 0
 Wire_to_coin_cell
-Text Label 5700 4550 0    50   ~ 0
-A0
 Text Label 5400 4550 0    50   ~ 0
 A1
 Wire Wire Line
@@ -573,18 +571,6 @@ F 4 "BU2032SM-BT-GCT-ND" H 5300 5150 50  0001 L BNN "Part#"
 	1    5700 5700
 	0    -1   1    0   
 $EndComp
-$Comp
-L device:D D3
-U 1 1 5E2E8394
-P 5700 5250
-F 0 "D3" V 5800 5350 50  0000 C CNN
-F 1 "D" V 5700 5400 50  0000 C CNN
-F 2 "Diodes_SMD:D_SOD-323" H 5700 5250 50  0001 C CNN
-F 3 "https://toshiba.semicon-storage.com/info/docget.jsp?did=14077&prodName=CUS10S30" H 5700 5250 50  0001 C CNN
-F 4 "CUS10S30H3FCT-ND" H 5700 5250 50  0001 C CNN "Part#"
-	1    5700 5250
-	0    1    1    0   
-$EndComp
 Text Label 3950 3150 2    50   ~ 0
 SDA0
 Text Label 4700 4550 1    50   ~ 0
@@ -650,8 +636,6 @@ Wire Wire Line
 	2350 1100 2350 1000
 Wire Wire Line
 	2350 1000 2050 1000
-Text Label 8300 4900 2    50   ~ 0
-A0
 $Comp
 L device:C C2
 U 1 1 5E252D52
@@ -689,7 +673,6 @@ Wire Wire Line
 	2450 1450 2450 1550
 Text Label 2450 2300 0    50   ~ 0
 LED_PWM
-Connection ~ 5700 5400
 Text Label 8300 5000 2    50   ~ 0
 A1
 NoConn ~ 850  1500
@@ -830,4 +813,7 @@ F 3 "" H 5900 4550 50  0001 C CNN
 	1    5900 4550
 	1    0    0    1   
 $EndComp
+NoConn ~ 8300 4900
+NoConn ~ 5700 5100
+NoConn ~ 5700 4550
 $EndSCHEMATC

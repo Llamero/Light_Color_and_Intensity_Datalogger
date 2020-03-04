@@ -16,7 +16,7 @@
 #define WRITE_RESTART(val) ((*(volatile uint32_t *)RESTART_ADDR) = (val))
 
 //Setup default parameters
-uint8_t log_interval_array[] = {0, 0, 2}; //Number of hours, minutes, and seconds between log intervals
+uint8_t log_interval_array[] = {0, 0, 10}; //Number of hours, minutes, and seconds between log intervals
 const char boot_dir[] = "boot_log"; //Directory to save boot log files into - max length 8 char
 const char log_dir[] = "data_log"; //Directory to save data log files into - max length 8 char
 boolean measure_temp = true;
