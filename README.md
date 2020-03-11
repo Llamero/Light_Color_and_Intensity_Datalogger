@@ -9,3 +9,5 @@ This is an open-source data logger that can record air temperature, air pressure
 Windows users: Use this program to format SD cards >32 GB http://www.ridgecrop.demon.co.uk/index.htm?guiformat.htm
 
 For information on ordering, assembly, and programming, please see the instruction manual. 
+
+Development of this data logger was funded by NIH P30-EY003176-32
